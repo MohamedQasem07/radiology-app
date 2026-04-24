@@ -721,14 +721,32 @@ function showLoginScreen() {
   applyLoginBranding();
 }
 function showApp() {
-  document.getElementById('login-screen').hidden = true;
-  document.getElementById('app-screen').hidden = false;
-  applyAppBranding();
-  initDatalists();
-  // pick a default tab user can access
-  const allowedTabs = TABS.filter(t => t.canShow());
-  ui.currentTab = allowedTabs[0]?.id || 'profile';
-  render();
+  try {
+    console.log('[showApp] Start');
+    const login = document.getElementById('login-screen');
+    const app = document.getElementById('app-screen');
+    if (login) login.hidden = true;
+    if (app) app.hidden = false;
+    console.log('[showApp] login-hidden=', login?.hidden, 'app-hidden=', app?.hidden);
+
+    applyAppBranding();
+    console.log('[showApp] Branding done');
+    initDatalists();
+    console.log('[showApp] Datalists done');
+
+    const allowedTabs = TABS.filter(t => t.canShow());
+    console.log('[showApp] Allowed tabs:', allowedTabs.map(t => t.id));
+    ui.currentTab = allowedTabs[0]?.id || 'profile';
+    console.log('[showApp] currentTab:', ui.currentTab);
+
+    render();
+    console.log('[showApp] Render done ✓');
+  } catch (e) {
+    console.error('[showApp] FATAL:', e);
+    alert('خطأ في فتح التطبيق:\n' + e.message + '\n\n' + e.stack);
+    const errEl = document.getElementById('login-error');
+    if (errEl) errEl.textContent = '⚠️ خطأ: ' + e.message;
+  }
 }
 
 function applyAppBranding() {
@@ -778,28 +796,40 @@ function renderTabs() {
 function switchTab(tabId) { ui.currentTab = tabId; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 function render() {
-  renderTabs();
-  // Destroy any existing chart instances
-  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
-  chartInstances = {};
+  try {
+    renderTabs();
+    Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+    chartInstances = {};
 
-  const main = document.getElementById('main-content');
-  const renderers = {
-    dashboard: renderDashboard,
-    newcase: renderNewCase,
-    cases: renderCases,
-    payments: renderPayments,
-    expenses: renderExpenses,
-    statement: renderStatement,
-    clients: renderClientsPage,
-    settings: renderSettings,
-  };
-  const fn = renderers[ui.currentTab] || renderProfileSettings;
-  main.innerHTML = fn();
+    const main = document.getElementById('main-content');
+    const renderers = {
+      dashboard: renderDashboard,
+      newcase: renderNewCase,
+      cases: renderCases,
+      payments: renderPayments,
+      expenses: renderExpenses,
+      statement: renderStatement,
+      clients: renderClientsPage,
+      settings: renderSettings,
+    };
+    const fn = renderers[ui.currentTab] || renderProfileSettings;
+    console.log('[render] Rendering tab:', ui.currentTab);
+    main.innerHTML = fn();
 
-  // post-render hooks (charts)
-  if (ui.currentTab === 'dashboard') setTimeout(renderDashboardCharts, 50);
-  if (ui.currentTab === 'clients') setTimeout(renderClientsCharts, 50);
+    if (ui.currentTab === 'dashboard') setTimeout(renderDashboardCharts, 50);
+    if (ui.currentTab === 'clients') setTimeout(renderClientsCharts, 50);
+  } catch (e) {
+    console.error('[render] FATAL in tab', ui.currentTab, ':', e);
+    const main = document.getElementById('main-content');
+    if (main) {
+      main.innerHTML = `<div class="card" style="border-right:4px solid #ef4444; background:#fef2f2;">
+        <h3 class="font-bold text-red-700 mb-2">⚠️ خطأ في عرض الصفحة</h3>
+        <p class="text-sm text-slate-700 mb-2">التبويب: <strong>${escapeHtml(ui.currentTab)}</strong></p>
+        <pre class="text-xs bg-white p-3 rounded overflow-x-auto" style="direction:ltr; text-align:left;">${escapeHtml(e.message + '\n' + (e.stack || ''))}</pre>
+        <button onclick="ui.currentTab='settings'; ui.settingsTab='profile'; render()" class="btn btn-secondary mt-3">↪ روح للإعدادات</button>
+      </div>`;
+    }
+  }
 }
 
 //==============================================================
