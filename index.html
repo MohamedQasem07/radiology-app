@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>برنامج إدارة طبيب الأشعة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Times+New+Roman&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { font-family: 'Cairo', sans-serif; }
+    body { background: #f3f4f6; }
+    input, select, textarea { border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; width: 100%; background: white; font-size: 14px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #374151; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.15s; border: none; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-success { background: #16a34a; color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-secondary { background: #e5e7eb; color: #1f2937; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; }
+    .tab-btn { padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .tab-active { background: #2563eb; color: white; }
+    .tab-inactive:hover { background: #f3f4f6; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 10px; text-align: right; font-size: 14px; }
+    th { background: #f9fafb; font-weight: 700; border-bottom: 2px solid #e5e7eb; }
+    tr { border-bottom: 1px solid #f3f4f6; }
+    tr:hover { background: #fafafa; }
+    .badge { padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-content { background: white; border-radius: 8px; padding: 24px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .toast-box { animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from { transform: translateX(-30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 640px) { .mobile-stack th, .mobile-stack td { font-size: 12px; padding: 6px; } }
+
+    .report-edit .sec-content-edit { width: 100%; min-height: 80px; border: 1px dashed #aaa; padding: 6px; font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.6; direction: ltr; text-align: left; background: #fafafa; }
+    .report-edit .sec-heading-edit { width: 100%; font-weight: bold; font-style: italic; font-size: 15px; border: 1px dashed #ccc; padding: 4px; margin-bottom: 4px; }
+
+    .chooser-card { border: 2px solid #e5e7eb; border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.15s; background: white; text-align: right; width: 100%; }
+    .chooser-card:hover { border-color: #2563eb; background: #eff6ff; }
+    .chooser-card.existing { border-color: #16a34a; background: #f0fdf4; }
+    .chooser-card.existing:hover { background: #dcfce7; }
+
+    @media print {
+      body { background: white !important; }
+      .no-print { display: none !important; }
+      .card { box-shadow: none !important; border: 1px solid #ddd; }
+      @page { size: A4; margin: 15mm; }
+      tr { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="bg-white shadow-sm no-print sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🩻</span>
+          <h1 class="text-lg md:text-xl font-bold text-gray-800">برنامج طبيب الأشعة</h1>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span id="save-indicator" style="color:#9ca3af">●</span>
+          <span id="save-text">محفوظ</span>
+        </div>
+      </div>
+      <nav id="tabs" class="flex gap-1 mt-3 overflow-x-auto pb-1"></nav>
+    </div>
+  </header>
+
+  <main id="main-content" class="max-w-7xl mx-auto p-4"></main>
+  <div id="modal-container"></div>
+  <div id="toast-container" class="fixed top-20 right-4 z-[100] space-y-2"></div>
+
+  <datalist id="nationalities-datalist"></datalist>
+
+<script>
+//==============================================================
+// CONSTANTS
+//==============================================================
+const STORAGE_KEY = 'radiology_app_v4';
+
+const HOSPITAL_TYPES = [
+  { code: 'hospital',        label: 'Hospital',        labelAr: 'مستشفى' },
+  { code: 'medical_center',  label: 'Medical Center',  labelAr: 'مركز طبي' },
+  { code: 'company',         label: 'Company',         labelAr: 'شركة تأمين' },
+];
+
+const PATIENT_TYPES = [
+  { code: 'egyptian', labelAr: 'مصري',  priceField: 'priceEgyptian' },
+  { code: 'foreign',  labelAr: 'أجنبي', priceField: 'priceForeign' },
+  { code: 'resident', labelAr: 'مقيم',  priceField: 'priceResident' },
+];
+
+const EXPENSE_CATEGORIES = ['إيجار','كهرباء/مياه','مواصلات','أدوات مكتبية','اتصالات','طعام','صيانة','مرتبات','ضرائب','أخرى'];
+const PAYMENT_METHODS = ['كاش','تحويل بنكي','فودافون كاش','انستا باي','شيك','أخرى'];
+
+const NATIONALITIES = [
+  'Resident',
+  'Afghan','Åland Island','Albanian','Algerian','American','United States','U.S.',
+  'American Samoan','Andorran','Angolan','Anguillan','Antarctic',
+  'Antiguan','Barbudan','Argentine','Argentinian',
+  'Armenian','Aruban','Australian','Austrian',
+  'Azerbaijani','Azeri',
+  'Bahamian','Bahraini','Bangladeshi','Barbadian',
+  'Barthélemois','Basotho','Belarusian','Belgian','Belizean',
+  'Beninese','Beninois','Bermudian','Bermudan',
+  'Bhutanese','BIOT','Bissau-Guinean',
+  'Bolivian','Bonaire','Bonairean',
+  'Bosnian','Herzegovinian',
+  'Botswanan','Bouvet Island','Brazilian',
+  'British','United Kingdom','UK',
+  'British Virgin Island','Bruneian','Bulgarian',
+  'Burkinabe','Burundian','Cabo Verdean','Cambodian',
+  'Cameroonian','Canadian','Caymanian','Central African',
+  'Chadian','Chilean','Chinese','Christmas Island',
+  'Cocos Island','Colombian','Comoran','Comorian',
+  'Congolese','Cook Island','Costa Rican','Croatian',
+  'Cuban','Curaçaoan','Cypriot','Czech','Danish',
+  'Djiboutian','Dominican',
+  'Dutch','Ecuadorian','Egyptian',
+  'Emirati','Emirian','Emiri',
+  'English','Equatorial Guinean','Equatoguinean',
+  'Eritrean','Estonian','Ethiopian','European',
+  'Falkland Island','Faroese','Fijian',
+  'Filipino','Philippine',
+  'Finnish','French','French Guianese','French Polynesian',
+  'French Southern Territories','Gabonese','Gambian',
+  'Georgian','German','Ghanaian','Gibraltar',
+  'Greek','Hellenic',
+  'Greenlandic','Grenadian','Guadeloupe','Guamanian',
+  'Guatemalan','Guernsey','Guinean','Guyanese',
+  'Haitian','Heard Island','McDonald Island',
+  'Honduran','Hong Kong','Cantonese','Hong Konger',
+  'Hungarian','Magyar',
+  'Icelandic','Indian','Indonesian',
+  'Iranian','Persian',
+  'Iraqi','Irish',
+  'Israeli','Israelite',
+  'Italian','Ivorian','Jamaican','Jan Mayen',
+  'Japanese','Jersey','Jordanian',
+  'Kazakhstani','Kazakh',
+  'Kenyan','Kiribati',
+  'Kittitian','Nevisian','Kosovar','Kosovan',
+  'Kuwaiti',
+  'Kyrgyzstani','Kyrgyz','Kirgiz','Kirghiz',
+  'Lao','Laotian',
+  'Latvian','Lettish',
+  'Lebanese','Liberian','Libyan','Liechtensteiner',
+  'Lithuanian','Luxembourg','Luxembourgish',
+  'Macanese','Macedonian','Mahoran',
+  'Malagasy','Madagascan','Malawian',
+  'Malaysian','Maldivian',
+  'Malian','Malinese',
+  'Maltese','Manx','Marshallese',
+  'Martiniquais','Martinican',
+  'Mauritanian','Mauritian',
+  'Mexican','Micronesian','Moldovan',
+  'Monégasque','Monacan',
+  'Mongolian','Montenegrin','Montserratian',
+  'Moroccan','Mozambican','Myanma','Burmese',
+  'Namibian','Nauruan',
+  'Nepali','Nepalese',
+  'New Caledonian','New Zealand','Nicaraguan',
+  'Nigerian','Nigerien','Niuean',
+  'Ni-Vanuatu','Vanuatuan',
+  'Norfolk Island','North Korean','Northern Cypriot','Turkish Cypriot',
+  'Northern Irish','Northern Marianan','Norwegian','Omani',
+  'Pakistani','Palauan','Palestinian','Panamanian',
+  'Papua New Guinean','Papuan',
+  'Paraguayan','Peruvian','Pitcairn Island',
+  'Polish','Portuguese','Puerto Rican','Qatari',
+  'Réunionese','Réunionnais',
+  'Romanian','Russian','Rwandan','Saban',
+  'Sahrawi','Saharawi','Western Saharan',
+  'Saint Helenian','Saint Lucian',
+  'Saint-Martinoise','Saint-Pierrais','Miquelonnais',
+  'Saint Vincentian','Vincentian',
+  'Salvadoran','Sammarinese','Samoan','São Toméan',
+  'Saudi','Saudi Arabian',
+  'Scottish','Senegalese','Serbian','Seychellois','Sierra Leonean',
+  'Singapore','Singaporean',
+  'Sint Eustatius','Statian','Sint Maarten','Slovak',
+  'Slovenian','Slovene',
+  'Solomon Island','Somali','Somalilander','South African',
+  'South Georgia Island','South Sandwich Island',
+  'South Korean','South Ossetian','South Sudanese',
+  'Spanish','Sri Lankan','Sudanese','Surinamese','Svalbard',
+  'Swazi','Swati',
+  'Swedish','Swiss','Syrian',
+  'Taiwanese','Formosan',
+  'Tajikistani','Tanzanian','Thai','Timorese',
+  'Togolese','Tokelauan','Tongan',
+  'Transnistrian','Pridnestrovian',
+  'Trinidadian','Tobagonian',
+  'Tunisian','Turkish','Turkmen',
+  'Turks and Caicos Island','Tuvaluan',
+  'U.S. Virgin Island','Ugandan','Ukrainian','Uruguayan',
+  'Uzbekistani','Uzbek',
+  'Vaticanian','Venezuelan','Vietnamese',
+  'Wallis and Futuna','Wallisian','Futunan',
+  'Welsh','Yemeni','Zambian','Zanzibari','Zimbabwean',
+];
+
+const DEFAULT_SERVICES = [
+  { code: 'paus',           name: 'سونار بطن وحوض',                    nameEn: 'PAUS',                        category: 'سونار' },
+  { code: 'breast_us',      name: 'سونار على الثدي',                   nameEn: 'Breast US',                   category: 'سونار' },
+  { code: 'chest_us',       name: 'سونار على الصدر',                   nameEn: 'Chest Ultrasound',            category: 'سونار' },
+  { code: 'superficial_us', name: 'سونار سطحي على المفاصل',           nameEn: 'Superficial US',              category: 'سونار' },
+  { code: 'doppler_one',    name: 'دوبلر أوردة وشرايين طرف واحد',     nameEn: 'Arterial, Venous One Limb',   category: 'دوبلر' },
+  { code: 'doppler_both',   name: 'دوبلر أوردة وشرايين طرفين',        nameEn: 'Arterial, Venous Both Limbs', category: 'دوبلر' },
+  { code: 'carotid',        name: 'دوبلر شرايين الرقبة',               nameEn: 'Carotid Duplex',              category: 'دوبلر' },
+  { code: 'thyroid',        name: 'دوبلر الغدة الدرقية',               nameEn: 'Thyroid Duplex',              category: 'دوبلر' },
+  { code: 'scrotal',        name: 'دوبلر الخصية',                       nameEn: 'Scrotal Duplex',              category: 'دوبلر' },
+];
+
+const DEFAULT_HOSPITALS = [
+  { code: 'hmc',       name: 'Hurghada Medical Center', type: 'medical_center' },
+  { code: 'jasmine',   name: 'Jasmine Hospital',        type: 'hospital' },
+  { code: 'alfa',      name: 'Alfa Hospital',           type: 'hospital' },
+  { code: 'aseel',     name: 'Aseel Hospital',          type: 'hospital' },
+  { code: 'icc',       name: 'ICC',                     type: 'company' },
+  { code: 'clinica',   name: 'Clinica',                 type: 'company' },
+  { code: 'az',        name: 'AZ',                      type: 'company' },
+  { code: 'europa',    name: 'Europa Clinic',           type: 'medical_center' },
+];
+
+const DEFAULT_TEMPLATES = {
+  paus: {
+    title: 'ABDOMINAL ULTRASONOGRAPHY REVEALED:',
+    sections: [
+      { heading: 'LIVER:', content: '• Normal sizes both hepatic lobes, with regular outline.\n• Normal parenchymal echo-reflectivity with normal periportal echoes.\n• No masses or focal hepatic lesions in both lobes.\n• No intra hepatic biliary radical dilatation detected in both lobes.\n• Normal caliber of the main portal vein and patent.' },
+      { heading: 'ASCITES:', content: '• No ascites.' },
+      { heading: 'SPLEEN:', content: '• Not enlarged with uniform texture. No masses.\n• Normal caliber of main splenic vein with no hilar lesion.' },
+      { heading: 'GALL BLADDER AND BILIARY SYSTEM:', content: '• Normal size and shape with normal wall thickness.\n• Normal caliber of the C.B.D. No stones inside.' },
+      { heading: 'BOTH KIDNEYS:', content: '• Normal size, site and shape with regular outlines.\n• Normal parenchymal thickness and echogenicity bilaterally.' },
+      { heading: 'URINARY BLADDER:', content: '• Partially full with urine, no stones, no masses, no diverticulum.' },
+    ],
+    conclusion: '• Unremarkable abdomino-pelvic ultrasonographic study.',
+  },
+  breast_us: {
+    title: 'BILATERAL BREAST ULTRASONOGRAPHY REVEALED:',
+    sections: [
+      { heading: 'RIGHT BREAST:', content: '• Normal skin thickness.\n• Normal retro-mammary fat plane.\n• No focal solid or cystic lesions detected.\n• No dilated ducts.' },
+      { heading: 'LEFT BREAST:', content: '• Normal skin thickness.\n• Normal retro-mammary fat plane.\n• No focal solid or cystic lesions detected.\n• No dilated ducts.' },
+      { heading: 'BOTH AXILLAE:', content: '• No abnormally enlarged axillary lymph nodes detected on either side.' },
+    ],
+    conclusion: '• Unremarkable bilateral breast ultrasonography — BIRADS I.',
+  },
+  chest_us: {
+    title: 'CHEST ULTRASONOGRAPHY REVEALED:',
+    sections: [
+      { heading: 'PLEURA:', content: '• No pleural effusion detected on either side.\n• Normal pleural line with preserved lung sliding.' },
+      { heading: 'LUNGS:', content: '• Normal A-lines pattern bilaterally.\n• No consolidation or sub-pleural lesions detected.' },
+      { heading: 'CHEST WALL:', content: '• Normal soft tissues with no abnormal collections.' },
+    ],
+    conclusion: '• Unremarkable chest ultrasonographic study.',
+  },
+  superficial_us: {
+    title: 'SUPERFICIAL JOINT ULTRASONOGRAPHY REVEALED:',
+    sections: [
+      { heading: 'EXAMINED JOINT:', content: '• (specify joint and side)' },
+      { heading: 'JOINT SPACE:', content: '• No joint effusion detected.\n• Normal articular cartilage.' },
+      { heading: 'SOFT TISSUES:', content: '• Normal surrounding tendons and ligaments.\n• No abnormal collections or masses.' },
+      { heading: 'BONY CONTOUR:', content: '• Smooth and regular.' },
+    ],
+    conclusion: '• Unremarkable superficial joint ultrasonographic study.',
+  },
+  doppler_one: {
+    title: 'COLOR DUPLEX ULTRASONIC EXAMINATION OF (LEFT / RIGHT) LOWER EXTREMITY ARTERIAL AND VENOUS SYSTEMS:',
+    sections: [
+      { heading: 'ARTERIAL SYSTEM:', content: '• Normal course, caliber of the examined arteries with thin intima/lumen interface, no evidence of soft or calcified atheromatous plaques or hemodynamically significant stenosis.\n• Normal arterial Doppler waveform pattern (triphasic).' },
+      { heading: 'PEAK SYSTOLIC VELOCITIES:', content: '• PSV of external iliac artery:        ___ cm/sec\n• PSV of common femoral artery:        ___ cm/sec\n• PSV of superficial femoral artery:\n    - Proximal segment:  ___ cm/sec\n    - Mid segment:       ___ cm/sec\n    - Distal segment:    ___ cm/sec\n• PSV of popliteal artery:              ___ cm/sec\n• PSV of posterior tibial artery:\n    - Proximal segment:  ___ cm/sec\n    - Mid segment:       ___ cm/sec\n    - Distal segment:    ___ cm/sec' },
+      { heading: 'VENOUS SYSTEM:', content: '• The external iliac, common femoral, superficial femoral, popliteal and posterior tibial veins appear patent, anechoic, compressible throughout their visualized course with no evidence of intraluminal thrombosis.\n• Color duplex study revealed slightly phasic non-pulsatile normal flow inside.\n• Competent sapheno-femoral junction.' },
+    ],
+    conclusion: '• Adequate compliance of the lower extremity arterial system.\n• No acute DVT.',
+  },
+  doppler_both: {
+    title: 'COLOR DUPLEX ULTRASONIC EXAMINATION OF BOTH LOWER EXTREMITY ARTERIAL AND VENOUS SYSTEMS:',
+    sections: [
+      { heading: 'ARTERIAL SYSTEM:', content: '• The arterial system of both lower limbs shows normal course and caliber with thin intima/lumen interface, no evidence of soft or calcified atheromatous plaques or hemodynamically significant stenosis.\n• Normal arterial Doppler waveform pattern (triphasic).\n• Both A.T.A. and P.T.A. are patent and not occluded.\n• Both D.P.A. show normal color flow mapping.' },
+      { heading: 'PEAK SYSTOLIC VELOCITIES (Right / Left):', content: '• External iliac artery:        ___ / ___ cm/sec\n• Common femoral artery:        ___ / ___ cm/sec\n• Superficial femoral artery:   ___ / ___ cm/sec\n• Popliteal artery:             ___ / ___ cm/sec\n• Posterior tibial artery:      ___ / ___ cm/sec' },
+      { heading: 'VENOUS SYSTEM:', content: '• The iliac veins are patent with no deep venous thrombosis.\n• The common femoral, superficial femoral, popliteal and poplito-tibial veins on both sides are patent, compressible, echo-free with normal color flow mapping and no DVT.\n• Competent sapheno-femoral and sapheno-popliteal junctions bilaterally.' },
+    ],
+    conclusion: '• No significant arterial stenosis or occlusion of both lower limbs.\n• No evidence of Deep Venous Thrombosis.',
+  },
+  carotid: {
+    title: 'BILATERAL CAROTID AND VERTEBRAL COLOR-CODED DUPLEX STUDY REVEALED:',
+    sections: [
+      { heading: 'FINDINGS:', content: '• The carotid and vertebral arterial systems show normal / mild atherosclerotic changes with no / mild intimal-medial thickening with no soft tissue or calcified atheromatous plaques detected.\n• No arterial stenosis or occlusion seen.\n• Normal Doppler waveform pattern of the carotid arteries.\n• Normal direction, color flow mapping and velocity of the vertebral arteries.\n• Normal neck veins & lymph nodes.' },
+      { heading: 'PEAK SYSTOLIC VELOCITIES:', content: '• Right common carotid artery:    ___ cm/sec\n• Right internal carotid artery:  ___ cm/sec\n• Right external carotid artery:  ___ cm/sec\n• Left common carotid artery:     ___ cm/sec\n• Left internal carotid artery:   ___ cm/sec\n• Left external carotid artery:   ___ cm/sec' },
+      { heading: 'VERTEBRAL SYSTEMS:', content: '• Right vertebral R.I = ___\n• Left vertebral R.I  = ___' },
+    ],
+    conclusion: '• No hemodynamically significant stenosis.',
+  },
+  thyroid: {
+    title: 'THYROID COLOR DUPLEX ULTRASONOGRAPHY REVEALED:',
+    sections: [
+      { heading: 'RIGHT LOBE:', content: '• Dimensions: ___ × ___ × ___ cm.\n• Normal parenchymal echo-pattern, no focal lesions.' },
+      { heading: 'LEFT LOBE:', content: '• Dimensions: ___ × ___ × ___ cm.\n• Normal parenchymal echo-pattern, no focal lesions.' },
+      { heading: 'ISTHMUS:', content: '• Normal thickness: ___ mm.' },
+      { heading: 'COLOR DOPPLER:', content: '• Normal vascular pattern, no increased parenchymal flow.' },
+      { heading: 'CERVICAL LYMPH NODES:', content: '• No abnormally enlarged cervical lymph nodes detected.' },
+    ],
+    conclusion: '• Unremarkable thyroid ultrasonography.',
+  },
+  scrotal: {
+    title: 'SCROTAL COLOR DUPLEX ULTRASONOGRAPHY REVEALED:',
+    sections: [
+      { heading: 'RIGHT TESTIS:', content: '• Dimensions: ___ × ___ × ___ cm.\n• Normal echo-pattern, no focal lesions.\n• Normal intra-testicular vascularity.' },
+      { heading: 'LEFT TESTIS:', content: '• Dimensions: ___ × ___ × ___ cm.\n• Normal echo-pattern, no focal lesions.\n• Normal intra-testicular vascularity.' },
+      { heading: 'EPIDIDYMES:', content: '• Normal bilaterally, no cysts or collections.' },
+      { heading: 'PAMPINIFORM PLEXUS:', content: '• No varicocele detected bilaterally (no reflux on Valsalva).' },
+      { heading: 'SCROTAL SAC:', content: '• No hydrocele. No hernial sac.' },
+    ],
+    conclusion: '• Unremarkable scrotal ultrasonography.',
+  },
+};
+
+//==============================================================
+// STATE
+//==============================================================
+let state = {
+  hospitals: [], services: [], prices: [], cases: [], payments: [], expenses: [],
+  settings: { doctorName: '', clinicName: '', phone: '', address: '' },
+  currentTab: 'dashboard',
+};
+
+let settingsTab = 'hospitals';
+let pricesFilterHospital = '';
+let casesFilter = { hospital: '', from: '', to: '', search: '', cashOnly: '', ptype: '' };
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+//==============================================================
+// STORAGE
+//==============================================================
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { Object.assign(state, JSON.parse(raw)); }
+    else { seedDefaults(); }
+  } catch (e) { console.error(e); seedDefaults(); }
+}
+
+function saveData() {
+  try {
+    const toSave = { ...state };
+    delete toSave.currentTab;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    flashSaved();
+  } catch (e) { toast('خطأ في الحفظ: ' + e.message, 'error'); }
+}
+
+function flashSaved() {
+  const ind = document.getElementById('save-indicator');
+  const txt = document.getElementById('save-text');
+  if (!ind) return;
+  ind.style.color = '#16a34a';
+  txt.textContent = 'محفوظ ✓';
+  setTimeout(() => { ind.style.color = '#9ca3af'; }, 1500);
+}
+
+function seedDefaults() {
+  state.services = DEFAULT_SERVICES.map(s => ({
+    id: uid(), code: s.code, name: s.name, nameEn: s.nameEn, category: s.category,
+    template: JSON.parse(JSON.stringify(DEFAULT_TEMPLATES[s.code] || { title: s.nameEn || s.name, sections: [], conclusion: '' })),
+  }));
+  state.hospitals = DEFAULT_HOSPITALS.map(h => ({
+    id: uid(), code: h.code, name: h.name, type: h.type,
+    phone: '', contactPerson: '', notes: '', openingBalance: 0, active: true,
+  }));
+  syncPricesMatrix();
+  saveData();
+}
+
+function syncPricesMatrix() {
+  const existing = new Set(state.prices.map(p => p.hospitalId + '|' + p.serviceId));
+  state.hospitals.forEach(h => {
+    state.services.forEach(s => {
+      const key = h.id + '|' + s.id;
+      if (!existing.has(key)) {
+        state.prices.push({
+          id: uid(), hospitalId: h.id, serviceId: s.id,
+          priceEgyptian: 0, priceForeign: 0, priceResident: 0,
+        });
+      }
+    });
+  });
+  const hIds = new Set(state.hospitals.map(h => h.id));
+  const sIds = new Set(state.services.map(s => s.id));
+  state.prices = state.prices.filter(p => hIds.has(p.hospitalId) && sIds.has(p.serviceId));
+}
+
+//==============================================================
+// UTILITIES
+//==============================================================
+function fmt(n) { return (Number(n) || 0).toLocaleString('ar-EG', { maximumFractionDigits: 2 }) + ' ج.م'; }
+function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
+function fmtDateEn(d) { if (!d) return ''; const dt = new Date(d); return String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+dt.getFullYear(); }
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function findHospital(id) { return state.hospitals.find(h => h.id === id); }
+function findService(id) { return state.services.find(s => s.id === id); }
+function findPrice(hospitalId, serviceId) { return state.prices.find(p => p.hospitalId === hospitalId && p.serviceId === serviceId); }
+function hospitalTypeLabel(code) { const t = HOSPITAL_TYPES.find(x => x.code === code); return t ? t.labelAr : '—'; }
+function patientTypeLabel(code) { const t = PATIENT_TYPES.find(x => x.code === code); return t ? t.labelAr : '—'; }
+function caseAmount(c) { return Number(c.price) || 0; }
+
+function hospitalDue(hospitalId, dateFrom = null, dateTo = null, includeOpening = true) {
+  const h = findHospital(hospitalId);
+  const opening = includeOpening ? (Number(h?.openingBalance) || 0) : 0;
+  let cases = state.cases.filter(c => c.hospitalId === hospitalId && !c.cashDirect);
+  let payments = state.payments.filter(p => p.hospitalId === hospitalId);
+  if (dateFrom) { cases = cases.filter(c => (c.date||'') >= dateFrom); payments = payments.filter(p => (p.date||'') >= dateFrom); }
+  if (dateTo)   { cases = cases.filter(c => (c.date||'') <= dateTo);   payments = payments.filter(p => (p.date||'') <= dateTo); }
+  const earned = cases.reduce((s, c) => s + caseAmount(c), 0);
+  const paid   = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  return { opening, earned, paid, due: opening + earned - paid, cases, payments };
+}
+
+function hospitalCashDirect(hospitalId, dateFrom = null, dateTo = null) {
+  let cases = state.cases.filter(c => c.hospitalId === hospitalId && c.cashDirect);
+  if (dateFrom) cases = cases.filter(c => (c.date||'') >= dateFrom);
+  if (dateTo)   cases = cases.filter(c => (c.date||'') <= dateTo);
+  const amount = cases.reduce((s, c) => s + caseAmount(c), 0);
+  return { cases, amount };
+}
+
+//==============================================================
+// TOAST + MODAL
+//==============================================================
+function toast(msg, type = 'success') {
+  const cont = document.getElementById('toast-container');
+  const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-blue-600', warn: 'bg-yellow-600' };
+  const el = document.createElement('div');
+  el.className = `toast-box ${colors[type]} text-white px-4 py-2 rounded shadow-lg text-sm`;
+  el.textContent = msg;
+  cont.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function openModal(title, contentHtml, onSave, opts = {}) {
+  const cont = document.getElementById('modal-container');
+  cont.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal-content" style="max-width:${opts.width || '700px'}">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold">${escapeHtml(title)}</h3>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="modal-body">${contentHtml}</div>
+        ${onSave ? `<div class="flex gap-2 justify-end mt-6">
+          <button onclick="closeModal()" class="btn btn-secondary">إلغاء</button>
+          <button id="modal-save-btn" class="btn ${opts.saveClass || 'btn-primary'}">${escapeHtml(opts.saveLabel || 'حفظ')}</button>
+        </div>` : `<div class="flex justify-end mt-6"><button onclick="closeModal()" class="btn btn-secondary">إغلاق</button></div>`}
+      </div>
+    </div>`;
+  if (onSave) {
+    document.getElementById('modal-save-btn').onclick = () => { const ok = onSave(); if (ok !== false) closeModal(); };
+  }
+}
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+function confirmAction(msg, cb) {
+  openModal('تأكيد', `<p class="text-gray-700">${escapeHtml(msg)}</p>`, () => { cb(); return true; }, { saveLabel: 'تأكيد', saveClass: 'btn-danger' });
+}
+
+//==============================================================
+// Init nationality datalist once
+//==============================================================
+function initNationalitiesList() {
+  const dl = document.getElementById('nationalities-datalist');
+  if (!dl) return;
+  dl.innerHTML = NATIONALITIES.map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
+//==============================================================
+// TABS
+//==============================================================
+const TABS = [
+  { id: 'dashboard', label: 'الرئيسية', icon: '🏠' },
+  { id: 'newcase',   label: 'حالة جديدة', icon: '➕' },
+  { id: 'cases',     label: 'الحالات', icon: '📋' },
+  { id: 'payments',  label: 'المقبوضات', icon: '💰' },
+  { id: 'expenses',  label: 'المصاريف', icon: '📉' },
+  { id: 'statement', label: 'كشف حساب', icon: '📄' },
+  { id: 'settings',  label: 'الإعدادات', icon: '⚙️' },
+];
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(t => `
+    <button onclick="switchTab('${t.id}')" class="tab-btn ${state.currentTab === t.id ? 'tab-active' : 'tab-inactive'}">${t.icon} ${t.label}</button>
+  `).join('');
+}
+function switchTab(tabId) { state.currentTab = tabId; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+function render() {
+  renderTabs();
+  const main = document.getElementById('main-content');
+  const r = { dashboard: renderDashboard, newcase: renderNewCase, cases: renderCases, payments: renderPayments, expenses: renderExpenses, statement: renderStatement, settings: renderSettings };
+  main.innerHTML = r[state.currentTab]();
+}
+
+//==============================================================
+// DASHBOARD
+//==============================================================
+function renderDashboard() {
+  const today = todayISO();
+  const thisMonth = today.slice(0, 7);
+  const todayCases = state.cases.filter(c => c.date === today);
+  const monthCases = state.cases.filter(c => (c.date || '').startsWith(thisMonth));
+  const monthIncome = monthCases.reduce((s, c) => s + caseAmount(c), 0);
+  const monthCashDirect = monthCases.filter(c => c.cashDirect).reduce((s, c) => s + caseAmount(c), 0);
+  const monthExpenses = state.expenses.filter(e => (e.date || '').startsWith(thisMonth)).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  const dues = state.hospitals.filter(h => h.active !== false).map(h => {
+    const d = hospitalDue(h.id);
+    const cashInfo = hospitalCashDirect(h.id);
+    return { hospital: h, ...d, cashDirectAmount: cashInfo.amount };
+  });
+  const totalDue = dues.reduce((s, d) => s + d.due, 0);
+  const totalOpening = dues.reduce((s, d) => s + d.opening, 0);
+  const totalEarnedHospitals = dues.reduce((s, d) => s + d.earned, 0);
+  const totalCashDirect = dues.reduce((s, d) => s + d.cashDirectAmount, 0);
+  const totalPaid = state.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const recentCases = [...state.cases].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
+
+  return `
+    <div class="space-y-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="card bg-gradient-to-br from-blue-50 to-blue-100"><div class="text-xs text-gray-600 mb-1">حالات اليوم</div><div class="text-2xl font-bold text-blue-700">${todayCases.length}</div></div>
+        <div class="card bg-gradient-to-br from-green-50 to-green-100"><div class="text-xs text-gray-600 mb-1">دخل هذا الشهر</div><div class="text-xl font-bold text-green-700">${fmt(monthIncome)}</div><div class="text-xs text-gray-500 mt-1">كاش مباشر: ${fmt(monthCashDirect)}</div></div>
+        <div class="card bg-gradient-to-br from-red-50 to-red-100"><div class="text-xs text-gray-600 mb-1">مصاريف الشهر</div><div class="text-xl font-bold text-red-700">${fmt(monthExpenses)}</div></div>
+        <div class="card bg-gradient-to-br from-yellow-50 to-yellow-100"><div class="text-xs text-gray-600 mb-1">إجمالي المستحقات</div><div class="text-xl font-bold text-yellow-700">${fmt(totalDue)}</div></div>
+      </div>
+
+      <div class="card">
+        <h3 class="font-bold mb-2">الملخص الإجمالي</h3>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-center text-sm">
+          <div><div class="text-xs text-gray-500">رصيد أول مدة</div><div class="font-bold">${fmt(totalOpening)}</div></div>
+          <div><div class="text-xs text-gray-500">من المستشفيات</div><div class="font-bold">${fmt(totalEarnedHospitals)}</div></div>
+          <div><div class="text-xs text-gray-500">كاش مباشر 💵</div><div class="font-bold text-green-700">${fmt(totalCashDirect)}</div></div>
+          <div><div class="text-xs text-gray-500">محصَّل من المستشفيات</div><div class="font-bold text-green-600">${fmt(totalPaid)}</div></div>
+          <div><div class="text-xs text-gray-500">متبقي على المستشفيات</div><div class="font-bold text-red-600">${fmt(totalOpening + totalEarnedHospitals - totalPaid)}</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="font-bold mb-3">💵 المستحقات على كل جهة</h3>
+        ${dues.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد جهات نشطة.</p>` :
+          `<div class="overflow-x-auto mobile-stack">
+            <table>
+              <thead><tr><th>الجهة</th><th>النوع</th><th>رصيد أول مدة</th><th>مكتسب</th><th>محصَّل</th><th>المتبقي</th><th>كاش مباشر</th><th class="no-print"></th></tr></thead>
+              <tbody>
+                ${dues.map(d => `
+                  <tr>
+                    <td class="font-semibold">${escapeHtml(d.hospital.name)}</td>
+                    <td><span class="badge bg-gray-100 text-gray-800">${hospitalTypeLabel(d.hospital.type)}</span></td>
+                    <td>${fmt(d.opening)}</td>
+                    <td>${fmt(d.earned)}</td>
+                    <td class="text-green-600">${fmt(d.paid)}</td>
+                    <td class="font-bold ${d.due > 0 ? 'text-red-600' : 'text-green-600'}">${fmt(d.due)}</td>
+                    <td class="text-gray-700">${d.cashDirectAmount > 0 ? fmt(d.cashDirectAmount) : '—'}</td>
+                    <td class="no-print"><button onclick="viewStatement('${d.hospital.id}')" class="text-blue-600 text-sm hover:underline">كشف حساب</button></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`}
+      </div>
+
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold">📋 آخر الحالات</h3>
+          <button onclick="switchTab('cases')" class="text-blue-600 text-sm hover:underline">عرض الكل ←</button>
+        </div>
+        ${recentCases.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد حالات بعد.</p>` :
+          `<div class="overflow-x-auto mobile-stack">
+            <table>
+              <thead><tr><th>التاريخ</th><th>المريض</th><th>الجهة</th><th>الخدمة</th><th>النوع</th><th>السعر</th><th>مصدر</th></tr></thead>
+              <tbody>
+                ${recentCases.map(c => `
+                  <tr>
+                    <td>${fmtDate(c.date)}</td>
+                    <td>${escapeHtml(c.patientName || '')}</td>
+                    <td>${escapeHtml(findHospital(c.hospitalId)?.name || '?')}</td>
+                    <td>${escapeHtml(findService(c.serviceId)?.name || '?')}</td>
+                    <td>${patientTypeLabel(c.patientType)}</td>
+                    <td class="font-bold">${fmt(caseAmount(c))}</td>
+                    <td>${c.cashDirect ? '<span class="badge bg-green-100 text-green-800">💵 كاش</span>' : '<span class="badge bg-blue-100 text-blue-800">🏥</span>'}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`}
+      </div>
+    </div>`;
+}
+
+function viewStatement(hospitalId) {
+  state.currentTab = 'statement';
+  render();
+  setTimeout(() => { const sel = document.getElementById('stmt-hospital'); if (sel) { sel.value = hospitalId; generateStatement(); } }, 50);
+}
+
+//==============================================================
+// NEW CASE
+//==============================================================
+function renderNewCase() {
+  if (state.hospitals.length === 0 || state.services.length === 0) {
+    return `<div class="card text-center py-10"><p class="text-gray-600 mb-4">لازم تضيف جهة وخدمة من الإعدادات الأول.</p><button onclick="switchTab('settings')" class="btn btn-primary">روح للإعدادات</button></div>`;
+  }
+  return `
+    <div class="max-w-3xl mx-auto card">
+      <h2 class="text-xl font-bold mb-4">➕ تسجيل حالة جديدة</h2>
+      <form onsubmit="saveNewCase(event)" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label>التاريخ *</label><input type="date" id="nc-date" value="${todayISO()}" required></div>
+          <div>
+            <label>الجهة *</label>
+            <select id="nc-hospital" required onchange="updatePriceFromForm()">
+              <option value="">-- اختر --</option>
+              ${state.hospitals.filter(h => h.active !== false).map(h => `<option value="${h.id}">${escapeHtml(h.name)} — ${hospitalTypeLabel(h.type)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label>الخدمة *</label>
+            <select id="nc-service" required onchange="updatePriceFromForm()">
+              <option value="">-- اختر --</option>
+              ${state.services.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label>اسم المريض *</label><input type="text" id="nc-patient" required placeholder="Ahmed Mohamed"></div>
+          <div><label>تاريخ الميلاد</label><input type="date" id="nc-dob"></div>
+          <div>
+            <label>الجنسية (اكتب للبحث)</label>
+            <input type="text" id="nc-nationality" list="nationalities-datalist" placeholder="German / French / Resident ...">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label>نوع المريض *</label>
+            <select id="nc-type" required onchange="updatePriceFromForm()">
+              ${PATIENT_TYPES.map(t => `<option value="${t.code}" ${t.code === 'foreign' ? 'selected' : ''}>${t.labelAr}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label>السعر / الفلوس اللي هتاخدها (ج.م)</label>
+            <input type="number" id="nc-price" step="0.01" min="0" placeholder="0">
+            <p class="text-xs text-gray-500 mt-1">يتم ملؤه تلقائياً حسب نوع المريض</p>
+          </div>
+        </div>
+
+        <div class="bg-green-50 border border-green-200 rounded p-3">
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" id="nc-cash" class="mt-1 w-4 h-4">
+            <div>
+              <div class="font-semibold text-green-800">💵 مريض مباشر — كاش</div>
+              <div class="text-xs text-gray-600">هذا المريض بتاعك أنت. الفلوس استلمتها كاش ومش هتضاف لمستحقات المستشفى.</div>
+            </div>
+          </label>
+        </div>
+
+        <div><label>ملاحظات</label><textarea id="nc-notes" rows="2"></textarea></div>
+
+        <div class="flex gap-2 justify-end pt-2">
+          <button type="button" onclick="switchTab('dashboard')" class="btn btn-secondary">إلغاء</button>
+          <button type="submit" class="btn btn-success">💾 حفظ الحالة</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+function updatePriceFromForm() {
+  const hId = document.getElementById('nc-hospital').value;
+  const sId = document.getElementById('nc-service').value;
+  const type = document.getElementById('nc-type').value;
+  if (!hId || !sId) return;
+  const price = findPrice(hId, sId);
+  if (!price) return;
+  const pt = PATIENT_TYPES.find(t => t.code === type);
+  const field = pt ? pt.priceField : 'priceEgyptian';
+  document.getElementById('nc-price').value = price[field] || 0;
+}
+
+function saveNewCase(e) {
+  e.preventDefault();
+  const cashDirect = document.getElementById('nc-cash').checked;
+  const c = {
+    id: uid(),
+    date: document.getElementById('nc-date').value,
+    hospitalId: document.getElementById('nc-hospital').value,
+    serviceId: document.getElementById('nc-service').value,
+    patientName: document.getElementById('nc-patient').value.trim(),
+    dateOfBirth: document.getElementById('nc-dob').value,
+    nationality: document.getElementById('nc-nationality').value.trim(),
+    patientType: document.getElementById('nc-type').value,
+    price: Number(document.getElementById('nc-price').value) || 0,
+    cashDirect,
+    notes: document.getElementById('nc-notes').value.trim(),
+    report: null,
+    createdAt: new Date().toISOString(),
+  };
+  state.cases.push(c);
+  saveData();
+  toast('تم حفظ الحالة ✓');
+  switchTab('cases');
+}
+
+//==============================================================
+// CASES LIST + EDIT
+//==============================================================
+function renderCases() {
+  let filtered = [...state.cases];
+  if (casesFilter.hospital) filtered = filtered.filter(c => c.hospitalId === casesFilter.hospital);
+  if (casesFilter.from)     filtered = filtered.filter(c => (c.date || '') >= casesFilter.from);
+  if (casesFilter.to)       filtered = filtered.filter(c => (c.date || '') <= casesFilter.to);
+  if (casesFilter.cashOnly === 'cash')  filtered = filtered.filter(c => c.cashDirect);
+  if (casesFilter.cashOnly === 'hosp')  filtered = filtered.filter(c => !c.cashDirect);
+  if (casesFilter.ptype)    filtered = filtered.filter(c => c.patientType === casesFilter.ptype);
+  if (casesFilter.search) {
+    const q = casesFilter.search.toLowerCase();
+    filtered = filtered.filter(c => (c.patientName || '').toLowerCase().includes(q) || (c.nationality || '').toLowerCase().includes(q));
+  }
+  filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const totalAmount = filtered.reduce((s, c) => s + caseAmount(c), 0);
+
+  return `
+    <div class="space-y-4">
+      <div class="card">
+        <h2 class="text-lg font-bold mb-3">📋 الحالات (${filtered.length})</h2>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-3">
+          <input type="text" placeholder="🔍 بحث (اسم/جنسية)" oninput="casesFilter.search=this.value; render()" value="${escapeHtml(casesFilter.search)}">
+          <select onchange="casesFilter.hospital=this.value; render()">
+            <option value="">كل الجهات</option>
+            ${state.hospitals.map(h => `<option value="${h.id}" ${casesFilter.hospital===h.id?'selected':''}>${escapeHtml(h.name)}</option>`).join('')}
+          </select>
+          <select onchange="casesFilter.ptype=this.value; render()">
+            <option value="">كل الأنواع</option>
+            ${PATIENT_TYPES.map(t => `<option value="${t.code}" ${casesFilter.ptype===t.code?'selected':''}>${t.labelAr}</option>`).join('')}
+          </select>
+          <select onchange="casesFilter.cashOnly=this.value; render()">
+            <option value="">كل المصادر</option>
+            <option value="cash" ${casesFilter.cashOnly==='cash'?'selected':''}>💵 كاش مباشر</option>
+            <option value="hosp" ${casesFilter.cashOnly==='hosp'?'selected':''}>🏥 من المستشفى</option>
+          </select>
+          <input type="date" onchange="casesFilter.from=this.value; render()" value="${casesFilter.from}" title="من">
+          <input type="date" onchange="casesFilter.to=this.value; render()" value="${casesFilter.to}" title="إلى">
+        </div>
+        <button onclick="casesFilter={hospital:'',from:'',to:'',search:'',cashOnly:'',ptype:''}; render()" class="text-xs text-blue-600 hover:underline">مسح الفلاتر</button>
+        <div class="text-sm text-gray-700 mt-2">إجمالي قيمة الحالات الظاهرة: <strong>${fmt(totalAmount)}</strong></div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        ${filtered.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد نتائج</p>` :
+        `<table class="mobile-stack">
+          <thead><tr><th>التاريخ</th><th>المريض</th><th>الجنسية</th><th>النوع</th><th>الجهة</th><th>الخدمة</th><th>السعر</th><th>مصدر</th><th>تقرير</th><th></th></tr></thead>
+          <tbody>
+            ${filtered.map(c => `
+              <tr>
+                <td>${fmtDate(c.date)}</td>
+                <td class="font-semibold">${escapeHtml(c.patientName || '')}</td>
+                <td class="text-xs">${escapeHtml(c.nationality || '—')}</td>
+                <td>${patientTypeLabel(c.patientType)}</td>
+                <td>${escapeHtml(findHospital(c.hospitalId)?.name || '?')}</td>
+                <td>${escapeHtml(findService(c.serviceId)?.name || '?')}</td>
+                <td class="font-bold">${fmt(caseAmount(c))}</td>
+                <td>${c.cashDirect ? '<span class="badge bg-green-100 text-green-800">💵</span>' : '<span class="badge bg-blue-100 text-blue-800">🏥</span>'}</td>
+                <td>
+                  <button onclick="openReportChooser('${c.id}')" class="text-lg hover:scale-110 transition" title="${c.report ? 'تقرير موجود — اضغط للتعديل' : 'إنشاء تقرير'}">${c.report ? '📄✓' : '📄'}</button>
+                </td>
+                <td class="whitespace-nowrap">
+                  <button onclick="editCase('${c.id}')" class="text-blue-600 hover:underline text-sm">تعديل</button>
+                  <button onclick="deleteCase('${c.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+}
+
+function editCase(id) {
+  const c = state.cases.find(x => x.id === id);
+  if (!c) return;
+  const body = `
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label>التاريخ</label><input type="date" id="ec-date" value="${c.date || ''}"></div>
+        <div><label>تاريخ الميلاد</label><input type="date" id="ec-dob" value="${c.dateOfBirth || ''}"></div>
+      </div>
+      <div><label>اسم المريض</label><input type="text" id="ec-patient" value="${escapeHtml(c.patientName || '')}"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label>الجنسية</label><input type="text" id="ec-nat" list="nationalities-datalist" value="${escapeHtml(c.nationality || '')}"></div>
+        <div><label>نوع المريض</label>
+          <select id="ec-type">
+            ${PATIENT_TYPES.map(t => `<option value="${t.code}" ${t.code === c.patientType ? 'selected' : ''}>${t.labelAr}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label>الجهة</label>
+          <select id="ec-hospital">${state.hospitals.map(h => `<option value="${h.id}" ${h.id === c.hospitalId ? 'selected' : ''}>${escapeHtml(h.name)}</option>`).join('')}</select>
+        </div>
+        <div><label>الخدمة</label>
+          <select id="ec-service">${state.services.map(s => `<option value="${s.id}" ${s.id === c.serviceId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div><label>السعر (ج.م)</label><input type="number" step="0.01" id="ec-price" value="${c.price || 0}"></div>
+      <div class="bg-green-50 border border-green-200 rounded p-3">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" id="ec-cash" class="mt-1 w-4 h-4" ${c.cashDirect ? 'checked' : ''}>
+          <div>
+            <div class="font-semibold text-green-800">💵 مريض مباشر — كاش</div>
+            <div class="text-xs text-gray-600">لا يضاف لمستحقات المستشفى.</div>
+          </div>
+        </label>
+      </div>
+      <div><label>ملاحظات</label><textarea id="ec-notes" rows="2">${escapeHtml(c.notes || '')}</textarea></div>
+    </div>`;
+  openModal('تعديل حالة', body, () => {
+    c.date = document.getElementById('ec-date').value;
+    c.dateOfBirth = document.getElementById('ec-dob').value;
+    c.patientName = document.getElementById('ec-patient').value.trim();
+    c.nationality = document.getElementById('ec-nat').value.trim();
+    c.patientType = document.getElementById('ec-type').value;
+    c.hospitalId = document.getElementById('ec-hospital').value;
+    c.serviceId = document.getElementById('ec-service').value;
+    c.price = Number(document.getElementById('ec-price').value) || 0;
+    c.cashDirect = document.getElementById('ec-cash').checked;
+    c.notes = document.getElementById('ec-notes').value.trim();
+    saveData(); render(); toast('تم التحديث ✓');
+  });
+}
+
+function deleteCase(id) {
+  confirmAction('حذف هذه الحالة؟', () => { state.cases = state.cases.filter(c => c.id !== id); saveData(); render(); toast('تم الحذف ✓'); });
+}
+
+//==============================================================
+// REPORT CHOOSER + WRITE + PRINT
+//==============================================================
+function openReportChooser(caseId) {
+  const c = state.cases.find(x => x.id === caseId);
+  if (!c) return;
+  const currentService = findService(c.serviceId);
+  const hasExistingReport = !!c.report;
+
+  const otherServicesOptions = state.services
+    .filter(s => s.id !== currentService?.id)
+    .map(s => `<option value="${s.id}">${escapeHtml(s.name)}${s.nameEn ? ' — ' + escapeHtml(s.nameEn) : ''}</option>`)
+    .join('');
+
+  const body = `
+    <div class="space-y-3">
+      <div class="bg-blue-50 p-3 rounded text-sm mb-3">
+        <strong>المريض:</strong> ${escapeHtml(c.patientName)} | <strong>الخدمة المسجّلة:</strong> ${escapeHtml(currentService?.name || '?')}
+      </div>
+
+      ${hasExistingReport ? `
+        <button onclick="writeReport('${caseId}', 'existing')" class="chooser-card existing">
+          <div class="font-semibold text-green-800">✏️ متابعة تعديل التقرير الحالي</div>
+          <div class="text-xs text-gray-600 mt-1">التقرير مكتوب بالفعل — افتحه للتعديل أو الطباعة</div>
+        </button>
+      ` : ''}
+
+      <button onclick="writeReport('${caseId}', 'service:${currentService?.id}')" class="chooser-card">
+        <div class="font-semibold">📋 استخدام قالب الخدمة: ${escapeHtml(currentService?.name || '')}</div>
+        <div class="text-xs text-gray-600 mt-1">القالب الافتراضي المرتبط بنوع الخدمة المسجّلة</div>
+      </button>
+
+      <div class="border-2 border-gray-200 rounded-lg p-3">
+        <div class="font-semibold mb-2 text-sm">📑 استخدام قالب خدمة أخرى:</div>
+        <select id="chooser-other-service" class="mb-2">
+          <option value="">-- اختر خدمة --</option>
+          ${otherServicesOptions}
+        </select>
+        <button onclick="useOtherTemplate('${caseId}')" class="btn btn-primary w-full">افتح القالب المختار</button>
+      </div>
+
+      <button onclick="writeReport('${caseId}', 'blank')" class="chooser-card" style="border-color:#eab308; background:#fefce8">
+        <div class="font-semibold" style="color:#854d0e">📝 قالب حر (فارغ)</div>
+        <div class="text-xs text-gray-600 mt-1">ابدأ من الصفر بدون أي قالب مسبق — اكتب كل الأقسام بنفسك</div>
+      </button>
+    </div>`;
+
+  openModal('📄 اختر نمط التقرير', body, null, { width: '600px' });
+}
+
+function useOtherTemplate(caseId) {
+  const sel = document.getElementById('chooser-other-service');
+  if (!sel || !sel.value) { toast('اختر خدمة الأول', 'warn'); return; }
+  writeReport(caseId, 'service:' + sel.value);
+}
+
+function writeReport(caseId, source) {
+  const c = state.cases.find(x => x.id === caseId);
+  if (!c) return;
+  const h = findHospital(c.hospitalId);
+
+  let report;
+  if (source === 'existing' && c.report) {
+    report = JSON.parse(JSON.stringify(c.report));
+  } else if (source === 'blank') {
+    report = { title: '', sections: [{ heading: '', content: '' }], conclusion: '' };
+  } else if (source && source.startsWith('service:')) {
+    const sid = source.slice('service:'.length);
+    const s = findService(sid);
+    if (s && s.template) {
+      report = JSON.parse(JSON.stringify(s.template));
+    } else {
+      report = { title: '', sections: [], conclusion: '' };
+    }
+  } else {
+    report = { title: '', sections: [], conclusion: '' };
+  }
+
+  const sectionsHtml = (report.sections || []).map((sec, i) => `
+    <div class="mb-3" data-idx="${i}">
+      <input type="text" class="sec-heading-edit" data-field="heading" value="${escapeHtml(sec.heading)}">
+      <textarea class="sec-content-edit" data-field="content" rows="5">${escapeHtml(sec.content)}</textarea>
+    </div>`).join('');
+
+  const body = `
+    <div class="space-y-3">
+      <div class="bg-blue-50 p-3 rounded text-sm">
+        <strong>المريض:</strong> ${escapeHtml(c.patientName)} | <strong>الجهة:</strong> ${escapeHtml(h?.name || '?')}
+      </div>
+      <div class="report-edit">
+        <div class="mb-3"><label>عنوان التقرير (في وسط الصفحة)</label><input type="text" id="rpt-title" value="${escapeHtml(report.title || '')}" style="direction:ltr; text-align:left; font-weight:bold; font-size:15px"></div>
+        <div id="rpt-sections">${sectionsHtml}</div>
+        <button type="button" onclick="addReportSection()" class="btn btn-secondary mb-3">➕ إضافة قسم</button>
+        <div><label>CONCLUSION (الخلاصة)</label><textarea id="rpt-conclusion" rows="4" style="direction:ltr; text-align:left; font-family:'Times New Roman',serif">${escapeHtml(report.conclusion || '')}</textarea></div>
+      </div>
+      <div class="flex gap-2 justify-between pt-3 border-t">
+        <div class="text-xs text-gray-500 self-center">اسم المريض وتاريخ الميلاد وتاريخ الفحص بيظهروا أسفل التقرير تلقائياً</div>
+        <button type="button" onclick="printReport('${caseId}', true)" class="btn btn-primary">🖨️ حفظ وطباعة / PDF</button>
+      </div>
+    </div>`;
+
+  openModal('✍️ كتابة تقرير', body, () => {
+    const saved = collectReportFromDom();
+    c.report = saved; saveData(); render(); toast('تم حفظ التقرير ✓');
+  }, { saveLabel: '💾 حفظ فقط', width: '850px' });
+}
+
+function collectReportFromDom() {
+  const title = document.getElementById('rpt-title').value;
+  const conclusion = document.getElementById('rpt-conclusion').value;
+  const sections = [];
+  document.querySelectorAll('#rpt-sections > [data-idx]').forEach(div => {
+    const heading = div.querySelector('[data-field="heading"]')?.value || '';
+    const content = div.querySelector('[data-field="content"]')?.value || '';
+    if (heading || content) sections.push({ heading, content });
+  });
+  return { title, sections, conclusion };
+}
+
+function addReportSection() {
+  const container = document.getElementById('rpt-sections');
+  const idx = container.children.length;
+  const div = document.createElement('div');
+  div.className = 'mb-3';
+  div.setAttribute('data-idx', idx);
+  div.innerHTML = `
+    <div class="flex gap-2 items-start">
+      <div class="flex-1">
+        <input type="text" class="sec-heading-edit" data-field="heading" placeholder="عنوان القسم">
+        <textarea class="sec-content-edit" data-field="content" rows="4" placeholder="المحتوى"></textarea>
+      </div>
+      <button type="button" onclick="this.closest('[data-idx]').remove()" class="text-red-600 hover:underline text-sm">حذف</button>
+    </div>`;
+  container.appendChild(div);
+}
+
+function printReport(caseId, saveFirst = false) {
+  const c = state.cases.find(x => x.id === caseId);
+  if (!c) return;
+  if (saveFirst) { c.report = collectReportFromDom(); saveData(); }
+  const report = c.report || {};
+  const sectionsHtml = (report.sections || []).map(sec => `
+    <h3 class="sec-heading">${escapeHtml(sec.heading || '')}</h3>
+    <div class="sec-content">${escapeHtml(sec.content || '')}</div>`).join('');
+
+  const safePatient = (c.patientName || 'Report').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 50);
+  const filename = `${safePatient}_${c.date || todayISO()}.pdf`;
+
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  w.document.write(`
+<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report - ${escapeHtml(c.patientName || '')}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+<style>
+  body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; background: #e5e7eb; color: #000; }
+  #report-container { background: white; max-width: 210mm; min-height: 270mm; margin: 20px auto; padding: 20mm; direction: ltr; text-align: left; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+  .letterhead { text-align: center; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 20px; }
+  .letterhead h1 { font-size: 26px; font-weight: bold; margin: 0; }
+  .letterhead .sub { font-size: 13px; color: #555; margin-top: 4px; }
+  h2.main-title { text-align: center; font-size: 18px; font-weight: bold; font-style: italic; text-decoration: underline; margin: 30px 0 20px; }
+  .content-area { flex: 1 1 auto; }
+  h3.sec-heading { font-size: 15px; font-weight: bold; font-style: italic; text-decoration: underline; margin: 14px 0 6px; }
+  .sec-content { font-size: 13px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 8px; padding-left: 8px; }
+  .conclusion-block { margin-top: 20px; }
+  .conclusion-block h3 { font-size: 15px; font-weight: bold; text-decoration: underline; margin-bottom: 6px; }
+  .conclusion-block .content { font-size: 13px; white-space: pre-wrap; line-height: 1.6; padding-left: 8px; }
+  .signature-block { margin-top: 50px; text-align: right; font-size: 13px; font-weight: bold; }
+  .patient-footer { margin-top: 40px; padding-top: 10px; border-top: 1px solid #999; font-size: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .patient-footer .item { display: inline-block; }
+  .patient-footer .label { font-weight: bold; font-style: italic; margin-left: 4px; }
+
+  /* Action bar */
+  .action-bar { position: fixed; top: 0; left: 0; right: 0; background: #1f2937; padding: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .action-bar button { padding: 10px 18px; font-size: 14px; font-weight: 600; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  .btn-print { background: #2563eb; }
+  .btn-pdf { background: #16a34a; }
+  .btn-share { background: #7c3aed; }
+  .btn-close { background: #6b7280; }
+  .action-bar button:hover { opacity: 0.9; }
+  #report-container { margin-top: 70px; }
+  #loading { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
+  #loading > div { background: white; padding: 20px 40px; border-radius: 8px; font-size: 16px; }
+
+  @page { size: A4; margin: 15mm; }
+  @media print {
+    body { background: white; }
+    #report-container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; min-height: auto; }
+    .action-bar, #loading { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    #report-container { padding: 10mm; margin: 10px; }
+    .action-bar button { padding: 8px 12px; font-size: 12px; }
+  }
+</style></head><body>
+
+<div class="action-bar no-print">
+  <button class="btn-print" onclick="doPrint()">🖨️ طباعة</button>
+  <button class="btn-pdf" onclick="doDownloadPdf()">📥 تحميل PDF</button>
+  <button class="btn-share" onclick="doShare()">📤 مشاركة</button>
+  <button class="btn-close" onclick="window.close()">✕ إغلاق</button>
+</div>
+
+<div id="loading"><div>⏳ جارٍ إنشاء PDF...</div></div>
+
+<div id="report-container">
+  <div class="letterhead">
+    <h1>${escapeHtml(state.settings.clinicName || 'RADIOLOGY REPORT')}</h1>
+    ${state.settings.doctorName ? `<div class="sub">Dr. ${escapeHtml(state.settings.doctorName)}</div>` : ''}
+    ${state.settings.address ? `<div class="sub">${escapeHtml(state.settings.address)}</div>` : ''}
+    ${state.settings.phone ? `<div class="sub">Tel: ${escapeHtml(state.settings.phone)}</div>` : ''}
+  </div>
+
+  <h2 class="main-title">${escapeHtml(report.title || '')}</h2>
+
+  <div class="content-area">
+    ${sectionsHtml}
+    ${report.conclusion ? `<div class="conclusion-block"><h3>CONCLUSION:</h3><div class="content">${escapeHtml(report.conclusion)}</div></div>` : ''}
+
+    <div class="signature-block">Dr. Signature</div>
+  </div>
+
+  <div class="patient-footer">
+    <span class="item"><span class="label">Patient:</span>${escapeHtml(c.patientName || '—')}</span>
+    <span class="item"><span class="label">Date of Birth:</span>${fmtDateEn(c.dateOfBirth) || '—'}</span>
+    <span class="item"><span class="label">Date of Exam:</span>${fmtDateEn(c.date)}</span>
+  </div>
+</div>
+
+<script>
+  const FILENAME = ${JSON.stringify(filename)};
+  const pdfOptions = {
+    margin: [10, 10, 10, 10],
+    filename: FILENAME,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+  function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
+  function doPrint() { window.print(); }
+  async function doDownloadPdf() {
+    showLoading(true);
+    try {
+      const el = document.getElementById('report-container');
+      await html2pdf().set(pdfOptions).from(el).save();
+    } catch (e) { alert('خطأ في إنشاء PDF: ' + e.message); }
+    finally { showLoading(false); }
+  }
+  async function doShare() {
+    showLoading(true);
+    try {
+      const el = document.getElementById('report-container');
+      const blob = await html2pdf().set(pdfOptions).from(el).outputPdf('blob');
+      const file = new File([blob], FILENAME, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'تقرير أشعة', text: 'تقرير أشعة - ' + ${JSON.stringify(c.patientName || '')} });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = FILENAME; a.click();
+        URL.revokeObjectURL(url);
+        alert('جهازك لا يدعم المشاركة المباشرة. تم تحميل PDF — شاركه يدوياً.');
+      }
+    } catch (e) { if (e.name !== 'AbortError') alert('خطأ: ' + e.message); }
+    finally { showLoading(false); }
+  }
+<\/script>
+</body></html>`);
+  w.document.close();
+  closeModal();
+  if (saveFirst) { render(); toast('تم الحفظ ✓ اختر من النافذة: طباعة / PDF / مشاركة'); }
+}
+
+//==============================================================
+// PAYMENTS
+//==============================================================
+function renderPayments() {
+  const sorted = [...state.payments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const total = sorted.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  return `
+    <div class="space-y-4">
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold">💰 المقبوضات من المستشفيات (${sorted.length})</h2>
+          <button onclick="addPayment()" class="btn btn-success">➕ إضافة مقبوض</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-2">الفلوس اللي بتستلمها من المستشفى. الكاش المباشر بيتحفظ من الحالة نفسها — مش هنا.</p>
+        <div class="text-sm text-gray-700">الإجمالي: <strong>${fmt(total)}</strong></div>
+      </div>
+      <div class="card overflow-x-auto">
+        ${sorted.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد مقبوضات بعد.</p>` :
+        `<table class="mobile-stack">
+          <thead><tr><th>التاريخ</th><th>الجهة</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظات</th><th></th></tr></thead>
+          <tbody>${sorted.map(p => `
+            <tr>
+              <td>${fmtDate(p.date)}</td>
+              <td>${escapeHtml(findHospital(p.hospitalId)?.name || '?')}</td>
+              <td class="font-bold text-green-700">${fmt(p.amount)}</td>
+              <td>${escapeHtml(p.method || '')}</td>
+              <td>${escapeHtml(p.notes || '')}</td>
+              <td>
+                <button onclick="editPayment('${p.id}')" class="text-blue-600 hover:underline text-sm">تعديل</button>
+                <button onclick="deletePayment('${p.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>`}
+      </div>
+    </div>`;
+}
+
+function addPayment(existing = null) {
+  if (state.hospitals.length === 0) { toast('أضف جهة الأول', 'warn'); return; }
+  const p = existing || { date: todayISO(), hospitalId: '', amount: 0, method: 'كاش', notes: '' };
+  const body = `
+    <div class="space-y-3">
+      <div><label>التاريخ</label><input type="date" id="pm-date" value="${p.date || todayISO()}"></div>
+      <div><label>الجهة</label><select id="pm-hospital"><option value="">-- اختر --</option>${state.hospitals.map(h => `<option value="${h.id}" ${h.id === p.hospitalId ? 'selected' : ''}>${escapeHtml(h.name)}</option>`).join('')}</select></div>
+      <div><label>المبلغ (ج.م)</label><input type="number" step="0.01" min="0" id="pm-amount" value="${p.amount || ''}"></div>
+      <div><label>طريقة الدفع</label><select id="pm-method">${PAYMENT_METHODS.map(m => `<option ${p.method === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+      <div><label>ملاحظات</label><textarea id="pm-notes" rows="2">${escapeHtml(p.notes || '')}</textarea></div>
+    </div>`;
+  openModal(existing ? 'تعديل مقبوض' : 'إضافة مقبوض', body, () => {
+    const data = { id: existing ? existing.id : uid(), date: document.getElementById('pm-date').value, hospitalId: document.getElementById('pm-hospital').value, amount: Number(document.getElementById('pm-amount').value) || 0, method: document.getElementById('pm-method').value, notes: document.getElementById('pm-notes').value.trim() };
+    if (!data.hospitalId) { toast('اختر جهة', 'error'); return false; }
+    if (data.amount <= 0) { toast('المبلغ يجب أن يكون أكبر من صفر', 'error'); return false; }
+    if (existing) Object.assign(existing, data); else state.payments.push(data);
+    saveData(); render(); toast(existing ? 'تم التحديث ✓' : 'تم الحفظ ✓');
+  });
+}
+function editPayment(id) { const p = state.payments.find(x => x.id === id); if (p) addPayment(p); }
+function deletePayment(id) { confirmAction('حذف هذا المقبوض؟', () => { state.payments = state.payments.filter(p => p.id !== id); saveData(); render(); toast('تم الحذف ✓'); }); }
+
+//==============================================================
+// EXPENSES
+//==============================================================
+function renderExpenses() {
+  const sorted = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const thisMonth = todayISO().slice(0, 7);
+  const monthTotal = sorted.filter(e => (e.date || '').startsWith(thisMonth)).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  return `
+    <div class="space-y-4">
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold">📉 المصاريف (${sorted.length})</h2>
+          <button onclick="addExpense()" class="btn btn-danger">➕ إضافة مصروف</button>
+        </div>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>الإجمالي: <strong>${fmt(total)}</strong></div>
+          <div>مصاريف الشهر: <strong class="text-red-600">${fmt(monthTotal)}</strong></div>
+        </div>
+      </div>
+      <div class="card overflow-x-auto">
+        ${sorted.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد مصاريف.</p>` :
+        `<table class="mobile-stack">
+          <thead><tr><th>التاريخ</th><th>الفئة</th><th>الوصف</th><th>المبلغ</th><th></th></tr></thead>
+          <tbody>${sorted.map(e => `
+            <tr>
+              <td>${fmtDate(e.date)}</td>
+              <td><span class="badge bg-gray-100 text-gray-800">${escapeHtml(e.category || '')}</span></td>
+              <td>${escapeHtml(e.description || '')}</td>
+              <td class="font-bold text-red-700">${fmt(e.amount)}</td>
+              <td>
+                <button onclick="editExpense('${e.id}')" class="text-blue-600 hover:underline text-sm">تعديل</button>
+                <button onclick="deleteExpense('${e.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>`}
+      </div>
+    </div>`;
+}
+
+function addExpense(existing = null) {
+  const e = existing || { date: todayISO(), category: EXPENSE_CATEGORIES[0], description: '', amount: 0 };
+  const body = `
+    <div class="space-y-3">
+      <div><label>التاريخ</label><input type="date" id="ex-date" value="${e.date || todayISO()}"></div>
+      <div><label>الفئة</label><select id="ex-cat">${EXPENSE_CATEGORIES.map(c => `<option ${c === e.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label>الوصف</label><input type="text" id="ex-desc" value="${escapeHtml(e.description || '')}"></div>
+      <div><label>المبلغ (ج.م)</label><input type="number" step="0.01" min="0" id="ex-amount" value="${e.amount || ''}"></div>
+    </div>`;
+  openModal(existing ? 'تعديل مصروف' : 'إضافة مصروف', body, () => {
+    const data = { id: existing ? existing.id : uid(), date: document.getElementById('ex-date').value, category: document.getElementById('ex-cat').value, description: document.getElementById('ex-desc').value.trim(), amount: Number(document.getElementById('ex-amount').value) || 0 };
+    if (data.amount <= 0) { toast('المبلغ يجب أن يكون أكبر من صفر', 'error'); return false; }
+    if (existing) Object.assign(existing, data); else state.expenses.push(data);
+    saveData(); render(); toast(existing ? 'تم التحديث ✓' : 'تم الحفظ ✓');
+  });
+}
+function editExpense(id) { const e = state.expenses.find(x => x.id === id); if (e) addExpense(e); }
+function deleteExpense(id) { confirmAction('حذف هذا المصروف؟', () => { state.expenses = state.expenses.filter(e => e.id !== id); saveData(); render(); toast('تم الحذف ✓'); }); }
+
+//==============================================================
+// STATEMENT
+//==============================================================
+function renderStatement() {
+  return `
+    <div class="space-y-4">
+      <div class="card no-print">
+        <h2 class="text-lg font-bold mb-3">📄 كشف حساب جهة</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div><label>الجهة</label>
+            <select id="stmt-hospital" onchange="generateStatement()">
+              <option value="">-- اختر --</option>
+              ${state.hospitals.map(h => `<option value="${h.id}">${escapeHtml(h.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div><label>من تاريخ</label><input type="date" id="stmt-from" onchange="generateStatement()"></div>
+          <div><label>إلى تاريخ</label><input type="date" id="stmt-to" onchange="generateStatement()"></div>
+          <div class="flex items-end"><button onclick="window.print()" class="btn btn-primary w-full">🖨️ طباعة / PDF</button></div>
+        </div>
+      </div>
+      <div id="stmt-output"></div>
+    </div>`;
+}
+
+function generateStatement() {
+  const hospitalId = document.getElementById('stmt-hospital').value;
+  const from = document.getElementById('stmt-from').value;
+  const to = document.getElementById('stmt-to').value;
+  const out = document.getElementById('stmt-output');
+  if (!hospitalId) { out.innerHTML = ''; return; }
+
+  const h = findHospital(hospitalId);
+  const { opening, earned, paid, due, cases, payments } = hospitalDue(hospitalId, from || null, to || null, !(from || to));
+  const cashInfo = hospitalCashDirect(hospitalId, from || null, to || null);
+  cases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  payments.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  cashInfo.cases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  out.innerHTML = `
+    <div class="card space-y-4">
+      <div class="text-center border-b pb-3">
+        <h1 class="text-2xl font-bold">${escapeHtml(state.settings.clinicName || 'عيادة طبيب الأشعة')}</h1>
+        ${state.settings.doctorName ? `<p class="text-sm text-gray-600">د. ${escapeHtml(state.settings.doctorName)}</p>` : ''}
+        ${state.settings.phone ? `<p class="text-sm text-gray-600">📞 ${escapeHtml(state.settings.phone)}</p>` : ''}
+        <h2 class="text-xl font-bold mt-3">كشف حساب — ${escapeHtml(h.name)} <span class="text-sm text-gray-500">(${hospitalTypeLabel(h.type)})</span></h2>
+        <p class="text-sm text-gray-600">${from ? `من ${fmtDate(from)}` : 'من البداية'} ${to ? `إلى ${fmtDate(to)}` : 'حتى ' + fmtDate(todayISO())}</p>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+        <div class="p-3 bg-gray-50 rounded"><div class="text-xs text-gray-600">رصيد أول مدة</div><div class="text-lg font-bold">${fmt(opening)}</div></div>
+        <div class="p-3 bg-blue-50 rounded"><div class="text-xs text-gray-600">مكتسب (حساب المستشفى)</div><div class="text-lg font-bold">${fmt(earned)}</div></div>
+        <div class="p-3 bg-green-50 rounded"><div class="text-xs text-gray-600">محصَّل</div><div class="text-lg font-bold text-green-700">${fmt(paid)}</div></div>
+        <div class="p-3 ${due > 0 ? 'bg-red-50' : 'bg-green-50'} rounded"><div class="text-xs text-gray-600">المتبقي</div><div class="text-lg font-bold ${due > 0 ? 'text-red-700' : 'text-green-700'}">${fmt(due)}</div></div>
+      </div>
+
+      ${cashInfo.amount > 0 ? `
+        <div class="p-3 bg-green-50 rounded border border-green-200 text-center">
+          <div class="text-xs text-gray-700">💵 دخل كاش مباشر (مش من حساب المستشفى)</div>
+          <div class="text-lg font-bold text-green-700">${fmt(cashInfo.amount)}</div>
+          <div class="text-xs text-gray-500 mt-1">${cashInfo.cases.length} حالة — مستلم مباشرة</div>
+        </div>
+      ` : ''}
+
+      <div>
+        <h3 class="font-bold mb-2">الحالات على حساب المستشفى (${cases.length})</h3>
+        ${cases.length === 0 ? '<p class="text-gray-500 text-sm">لا توجد حالات في الفترة</p>' :
+        `<table class="text-sm"><thead><tr><th>التاريخ</th><th>المريض</th><th>الجنسية</th><th>النوع</th><th>الخدمة</th><th>السعر</th></tr></thead><tbody>
+          ${cases.map(c => `<tr><td>${fmtDate(c.date)}</td><td>${escapeHtml(c.patientName || '')}</td><td class="text-xs">${escapeHtml(c.nationality || '—')}</td><td>${patientTypeLabel(c.patientType)}</td><td>${escapeHtml(findService(c.serviceId)?.name || '?')}</td><td class="font-bold">${fmt(caseAmount(c))}</td></tr>`).join('')}
+          <tr class="font-bold bg-gray-50"><td colspan="5" class="text-left">إجمالي</td><td>${fmt(earned)}</td></tr>
+        </tbody></table>`}
+      </div>
+
+      ${cashInfo.cases.length > 0 ? `
+        <div>
+          <h3 class="font-bold mb-2">💵 حالات الكاش المباشر (${cashInfo.cases.length}) — للاطلاع فقط</h3>
+          <table class="text-sm"><thead><tr><th>التاريخ</th><th>المريض</th><th>الخدمة</th><th>السعر</th></tr></thead><tbody>
+            ${cashInfo.cases.map(c => `<tr><td>${fmtDate(c.date)}</td><td>${escapeHtml(c.patientName || '')}</td><td>${escapeHtml(findService(c.serviceId)?.name || '?')}</td><td class="font-bold">${fmt(caseAmount(c))}</td></tr>`).join('')}
+            <tr class="font-bold bg-gray-50"><td colspan="3" class="text-left">إجمالي</td><td>${fmt(cashInfo.amount)}</td></tr>
+          </tbody></table>
+        </div>
+      ` : ''}
+
+      <div>
+        <h3 class="font-bold mb-2">المقبوضات (${payments.length})</h3>
+        ${payments.length === 0 ? '<p class="text-gray-500 text-sm">لا توجد مقبوضات في الفترة</p>' :
+        `<table class="text-sm"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظات</th></tr></thead><tbody>
+          ${payments.map(p => `<tr><td>${fmtDate(p.date)}</td><td class="font-bold text-green-700">${fmt(p.amount)}</td><td>${escapeHtml(p.method || '')}</td><td>${escapeHtml(p.notes || '')}</td></tr>`).join('')}
+          <tr class="font-bold bg-gray-50"><td class="text-left">إجمالي</td><td colspan="3">${fmt(paid)}</td></tr>
+        </tbody></table>`}
+      </div>
+    </div>`;
+}
+
+//==============================================================
+// SETTINGS
+//==============================================================
+function renderSettings() {
+  const sTabs = [
+    ['hospitals','🏥 الجهات'],
+    ['services','🩻 الخدمات'],
+    ['prices','💲 الأسعار'],
+    ['templates','📝 قوالب التقارير'],
+    ['profile','👤 بياناتي'],
+    ['backup','💾 النسخ الاحتياطي'],
+  ];
+  return `
+    <div class="space-y-4">
+      <div class="flex gap-2 border-b overflow-x-auto no-print">
+        ${sTabs.map(([id,label]) => `<button onclick="settingsTab='${id}';render()" class="tab-btn ${settingsTab===id?'tab-active':'tab-inactive'}">${label}</button>`).join('')}
+      </div>
+      <div>${({hospitals:renderHospitalsSettings,services:renderServicesSettings,prices:renderPricesSettings,templates:renderTemplatesSettings,profile:renderProfileSettings,backup:renderBackupSettings})[settingsTab]()}</div>
+    </div>`;
+}
+
+function renderHospitalsSettings() {
+  return `
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold">🏥 الجهات (${state.hospitals.length})</h3>
+        <button onclick="addHospital()" class="btn btn-primary">➕ إضافة جهة</button>
+      </div>
+      ${state.hospitals.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد جهات.</p>` :
+      `<div class="overflow-x-auto">
+        <table>
+          <thead><tr><th>الاسم</th><th>النوع</th><th>رصيد أول مدة</th><th>الهاتف</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>${state.hospitals.map(h => `
+            <tr>
+              <td class="font-semibold">${escapeHtml(h.name)}</td>
+              <td><span class="badge bg-gray-100 text-gray-800">${hospitalTypeLabel(h.type)}</span></td>
+              <td>${fmt(h.openingBalance || 0)}</td>
+              <td>${escapeHtml(h.phone || '')}</td>
+              <td><span class="badge ${h.active !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}">${h.active !== false ? 'نشط' : 'موقوف'}</span></td>
+              <td>
+                <button onclick="editHospital('${h.id}')" class="text-blue-600 hover:underline text-sm">تعديل</button>
+                <button onclick="deleteHospital('${h.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`}
+    </div>`;
+}
+
+function addHospital(existing = null) {
+  const h = existing || { name: '', type: 'hospital', phone: '', contactPerson: '', notes: '', openingBalance: 0, active: true };
+  const body = `
+    <div class="space-y-3">
+      <div><label>اسم الجهة *</label><input type="text" id="h-name" value="${escapeHtml(h.name)}"></div>
+      <div><label>النوع *</label>
+        <select id="h-type">${HOSPITAL_TYPES.map(t => `<option value="${t.code}" ${t.code === h.type ? 'selected' : ''}>${t.labelAr} (${t.label})</option>`).join('')}</select>
+      </div>
+      <div><label>رصيد أول مدة (ج.م)</label><input type="number" step="0.01" id="h-opening" value="${h.openingBalance || 0}"><p class="text-xs text-gray-500 mt-1">المبلغ المستحق عليهم قبل استخدام البرنامج</p></div>
+      <div><label>الهاتف</label><input type="text" id="h-phone" value="${escapeHtml(h.phone || '')}"></div>
+      <div><label>مسؤول الاتصال</label><input type="text" id="h-person" value="${escapeHtml(h.contactPerson || '')}"></div>
+      <div><label>ملاحظات</label><textarea id="h-notes" rows="2">${escapeHtml(h.notes || '')}</textarea></div>
+      <div><label><input type="checkbox" id="h-active" ${h.active !== false ? 'checked' : ''}> نشط</label></div>
+    </div>`;
+  openModal(existing ? 'تعديل جهة' : 'إضافة جهة', body, () => {
+    const name = document.getElementById('h-name').value.trim();
+    if (!name) { toast('الاسم مطلوب', 'error'); return false; }
+    const data = {
+      id: existing ? existing.id : uid(),
+      code: existing ? existing.code : uid(),
+      name, type: document.getElementById('h-type').value,
+      openingBalance: Number(document.getElementById('h-opening').value) || 0,
+      phone: document.getElementById('h-phone').value.trim(),
+      contactPerson: document.getElementById('h-person').value.trim(),
+      notes: document.getElementById('h-notes').value.trim(),
+      active: document.getElementById('h-active').checked,
+    };
+    if (existing) Object.assign(existing, data); else state.hospitals.push(data);
+    syncPricesMatrix();
+    saveData(); render();
+    toast(existing ? 'تم التحديث ✓' : 'تم إضافة الجهة ✓');
+  });
+}
+function editHospital(id) { const h = state.hospitals.find(x => x.id === id); if (h) addHospital(h); }
+function deleteHospital(id) {
+  const used = state.cases.some(c => c.hospitalId === id) || state.payments.some(p => p.hospitalId === id);
+  if (used) { toast('لا يمكن الحذف — هناك حالات أو مقبوضات. عطّل الجهة بدل الحذف.', 'error'); return; }
+  confirmAction('حذف هذه الجهة؟', () => { state.hospitals = state.hospitals.filter(h => h.id !== id); syncPricesMatrix(); saveData(); render(); toast('تم الحذف ✓'); });
+}
+
+function renderServicesSettings() {
+  return `
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold">🩻 الخدمات (${state.services.length})</h3>
+        <button onclick="addService()" class="btn btn-primary">➕ إضافة خدمة</button>
+      </div>
+      ${state.services.length === 0 ? `<p class="text-gray-500 text-center py-6">لا توجد خدمات.</p>` :
+      `<table>
+        <thead><tr><th>الاسم العربي</th><th>الاسم الإنجليزي</th><th>التصنيف</th><th></th></tr></thead>
+        <tbody>${state.services.map(s => `
+          <tr>
+            <td class="font-semibold">${escapeHtml(s.name)}</td>
+            <td>${escapeHtml(s.nameEn || '')}</td>
+            <td><span class="badge bg-gray-100 text-gray-800">${escapeHtml(s.category || '')}</span></td>
+            <td>
+              <button onclick="editService('${s.id}')" class="text-blue-600 hover:underline text-sm">تعديل</button>
+              <button onclick="deleteService('${s.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>`;
+}
+
+function addService(existing = null) {
+  const s = existing || { name: '', nameEn: '', category: '' };
+  const body = `
+    <div class="space-y-3">
+      <div><label>الاسم العربي *</label><input type="text" id="s-name" value="${escapeHtml(s.name)}"></div>
+      <div><label>الاسم الإنجليزي</label><input type="text" id="s-nameen" value="${escapeHtml(s.nameEn || '')}"></div>
+      <div><label>التصنيف</label><input type="text" id="s-cat" value="${escapeHtml(s.category)}"></div>
+    </div>`;
+  openModal(existing ? 'تعديل خدمة' : 'إضافة خدمة', body, () => {
+    const name = document.getElementById('s-name').value.trim();
+    if (!name) { toast('الاسم مطلوب', 'error'); return false; }
+    const data = {
+      id: existing ? existing.id : uid(),
+      code: existing ? existing.code : uid(),
+      name, nameEn: document.getElementById('s-nameen').value.trim(),
+      category: document.getElementById('s-cat').value.trim(),
+      template: existing ? existing.template : { title: document.getElementById('s-nameen').value.trim() || name, sections: [], conclusion: '' },
+    };
+    if (existing) Object.assign(existing, data); else state.services.push(data);
+    syncPricesMatrix();
+    saveData(); render();
+    toast(existing ? 'تم التحديث ✓' : 'تم إضافة الخدمة ✓');
+  });
+}
+function editService(id) { const s = state.services.find(x => x.id === id); if (s) addService(s); }
+function deleteService(id) {
+  const used = state.cases.some(c => c.serviceId === id);
+  if (used) { toast('لا يمكن الحذف — هناك حالات مرتبطة.', 'error'); return; }
+  confirmAction('حذف هذه الخدمة؟', () => { state.services = state.services.filter(s => s.id !== id); syncPricesMatrix(); saveData(); render(); toast('تم الحذف ✓'); });
+}
+
+function renderPricesSettings() {
+  if (state.hospitals.length === 0 || state.services.length === 0) {
+    return `<div class="card text-center py-8 text-gray-600">أضف جهة وخدمة الأول.</div>`;
+  }
+  const selectedH = pricesFilterHospital || state.hospitals.filter(h => h.active !== false)[0]?.id || '';
+  return `
+    <div class="card">
+      <div class="flex flex-wrap gap-3 items-end mb-4">
+        <div class="flex-1 min-w-[200px]">
+          <label>اختر جهة لتعديل أسعارها</label>
+          <select onchange="pricesFilterHospital=this.value; render()">
+            ${state.hospitals.map(h => `<option value="${h.id}" ${h.id === selectedH ? 'selected' : ''}>${escapeHtml(h.name)} ${h.active === false ? '(موقوف)' : ''}</option>`).join('')}
+          </select>
+        </div>
+        <button onclick="bulkEditPrices('${selectedH}')" class="btn btn-secondary">⚡ تعديل جماعي</button>
+      </div>
+      ${renderPricesTableForHospital(selectedH)}
+    </div>`;
+}
+
+function renderPricesTableForHospital(hospitalId) {
+  if (!hospitalId) return '';
+  const h = findHospital(hospitalId);
+  if (!h) return '';
+  return `
+    <h4 class="font-bold mb-2">💲 أسعار: ${escapeHtml(h.name)}</h4>
+    <p class="text-xs text-gray-500 mb-3">السعر هنا = الفلوس اللي هتاخدها من الجهة على كل حالة. الحفظ تلقائي.</p>
+    <div class="overflow-x-auto">
+      <table class="text-sm">
+        <thead><tr>
+          <th>الخدمة</th>
+          <th>سعر (مصري)</th>
+          <th>سعر (أجنبي)</th>
+          <th>سعر (مقيم)</th>
+        </tr></thead>
+        <tbody>
+          ${state.services.map(s => {
+            const p = findPrice(hospitalId, s.id);
+            if (!p) return '';
+            return `<tr>
+              <td class="font-semibold">${escapeHtml(s.name)}</td>
+              <td><input type="number" step="0.01" value="${p.priceEgyptian || 0}" onchange="updatePrice('${p.id}','priceEgyptian',this.value)" style="width:110px"></td>
+              <td><input type="number" step="0.01" value="${p.priceForeign || 0}" onchange="updatePrice('${p.id}','priceForeign',this.value)" style="width:110px"></td>
+              <td><input type="number" step="0.01" value="${p.priceResident || 0}" onchange="updatePrice('${p.id}','priceResident',this.value)" style="width:110px"></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function updatePrice(id, field, value) {
+  const p = state.prices.find(x => x.id === id);
+  if (!p) return;
+  p[field] = Number(value) || 0;
+  saveData();
+}
+
+function bulkEditPrices(hospitalId) {
+  const h = findHospital(hospitalId);
+  if (!h) return;
+  const body = `
+    <div class="space-y-3">
+      <p class="text-sm text-gray-700">القيم هتتطبق على <strong>كل الخدمات</strong> في <strong>${escapeHtml(h.name)}</strong>. اترك الحقل فارغاً لعدم التغيير.</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div><label>سعر مصري — للكل</label><input type="number" step="0.01" id="b-pe" placeholder="فارغ = لا تغيير"></div>
+        <div><label>سعر أجنبي — للكل</label><input type="number" step="0.01" id="b-pf" placeholder=""></div>
+        <div><label>سعر مقيم — للكل</label><input type="number" step="0.01" id="b-pr" placeholder=""></div>
+      </div>
+    </div>`;
+  openModal('⚡ تعديل جماعي للأسعار', body, () => {
+    const pe = document.getElementById('b-pe').value;
+    const pf = document.getElementById('b-pf').value;
+    const pr = document.getElementById('b-pr').value;
+    state.prices.filter(p => p.hospitalId === hospitalId).forEach(p => {
+      if (pe !== '')  p.priceEgyptian = Number(pe) || 0;
+      if (pf !== '')  p.priceForeign = Number(pf) || 0;
+      if (pr !== '')  p.priceResident = Number(pr) || 0;
+    });
+    saveData(); render(); toast('تم التحديث ✓');
+  });
+}
+
+function renderTemplatesSettings() {
+  return `
+    <div class="card">
+      <h3 class="font-bold mb-1">📝 قوالب التقارير</h3>
+      <p class="text-xs text-gray-500 mb-4">كل خدمة ليها قالب افتراضي بيتحمل تلقائياً عند كتابة التقرير.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        ${state.services.map(s => {
+          const hasTemplate = s.template && s.template.sections && s.template.sections.length > 0;
+          return `<div class="border rounded p-3 flex justify-between items-center">
+            <div>
+              <div class="font-semibold">${escapeHtml(s.name)}</div>
+              <div class="text-xs text-gray-500">${escapeHtml(s.nameEn || '')} — ${hasTemplate ? `<span class="text-green-600">✓ ${s.template.sections.length} أقسام</span>` : '<span class="text-red-600">⚠ فارغ</span>'}</div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="editTemplate('${s.id}')" class="btn btn-primary text-sm">تعديل</button>
+              <button onclick="resetTemplateToDefault('${s.id}')" class="btn btn-secondary text-sm">↺</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function editTemplate(serviceId) {
+  const s = findService(serviceId);
+  if (!s) return;
+  const t = s.template || { title: '', sections: [], conclusion: '' };
+  const sectionsHtml = (t.sections || []).map((sec, i) => `
+    <div class="mb-3 p-3 border rounded" data-idx="${i}">
+      <div class="flex justify-between items-center mb-2">
+        <input type="text" class="sec-heading-edit" data-field="heading" value="${escapeHtml(sec.heading)}" style="flex:1">
+        <button type="button" onclick="this.closest('[data-idx]').remove()" class="text-red-600 text-sm mr-2">حذف</button>
+      </div>
+      <textarea class="sec-content-edit" data-field="content" rows="5">${escapeHtml(sec.content)}</textarea>
+    </div>`).join('');
+
+  const body = `
+    <div class="report-edit space-y-3">
+      <div><label>عنوان التقرير</label><input type="text" id="tpl-title" value="${escapeHtml(t.title || '')}" style="direction:ltr; text-align:left; font-weight:bold"></div>
+      <div>
+        <label>الأقسام</label>
+        <div id="tpl-sections">${sectionsHtml}</div>
+        <button type="button" onclick="addTplSection()" class="btn btn-secondary mt-2">➕ إضافة قسم</button>
+      </div>
+      <div><label>CONCLUSION</label><textarea id="tpl-conclusion" rows="4" style="direction:ltr; text-align:left; font-family:'Times New Roman',serif">${escapeHtml(t.conclusion || '')}</textarea></div>
+    </div>`;
+  openModal(`تعديل قالب: ${s.name}`, body, () => {
+    const sections = [];
+    document.querySelectorAll('#tpl-sections > [data-idx]').forEach(div => {
+      const heading = div.querySelector('[data-field="heading"]')?.value || '';
+      const content = div.querySelector('[data-field="content"]')?.value || '';
+      if (heading || content) sections.push({ heading, content });
+    });
+    s.template = { title: document.getElementById('tpl-title').value, sections, conclusion: document.getElementById('tpl-conclusion').value };
+    saveData(); render(); toast('تم حفظ القالب ✓');
+  }, { width: '850px' });
+}
+
+function addTplSection() {
+  const container = document.getElementById('tpl-sections');
+  const idx = container.children.length;
+  const div = document.createElement('div');
+  div.className = 'mb-3 p-3 border rounded';
+  div.setAttribute('data-idx', idx);
+  div.innerHTML = `
+    <div class="flex justify-between items-center mb-2">
+      <input type="text" class="sec-heading-edit" data-field="heading" placeholder="عنوان القسم" style="flex:1">
+      <button type="button" onclick="this.closest('[data-idx]').remove()" class="text-red-600 text-sm mr-2">حذف</button>
+    </div>
+    <textarea class="sec-content-edit" data-field="content" rows="5" placeholder="المحتوى"></textarea>`;
+  container.appendChild(div);
+}
+
+function resetTemplateToDefault(serviceId) {
+  const s = findService(serviceId);
+  if (!s) return;
+  const def = DEFAULT_TEMPLATES[s.code];
+  if (!def) { toast('لا يوجد قالب افتراضي', 'warn'); return; }
+  confirmAction('إرجاع القالب للحالة الافتراضية؟', () => { s.template = JSON.parse(JSON.stringify(def)); saveData(); render(); toast('تم الإرجاع ✓'); });
+}
+
+function renderProfileSettings() {
+  return `
+    <div class="card max-w-lg">
+      <h3 class="font-bold mb-3">👤 بياناتي</h3>
+      <div class="space-y-3">
+        <div><label>اسم الدكتور</label><input type="text" id="pr-doctor" value="${escapeHtml(state.settings.doctorName || '')}"></div>
+        <div><label>اسم العيادة / المركز</label><input type="text" id="pr-clinic" value="${escapeHtml(state.settings.clinicName || '')}"></div>
+        <div><label>العنوان</label><input type="text" id="pr-address" value="${escapeHtml(state.settings.address || '')}"></div>
+        <div><label>هاتف التواصل</label><input type="text" id="pr-phone" value="${escapeHtml(state.settings.phone || '')}"></div>
+        <button onclick="saveProfile()" class="btn btn-primary">💾 حفظ</button>
+      </div>
+    </div>`;
+}
+
+function saveProfile() {
+  state.settings.doctorName = document.getElementById('pr-doctor').value.trim();
+  state.settings.clinicName = document.getElementById('pr-clinic').value.trim();
+  state.settings.address = document.getElementById('pr-address').value.trim();
+  state.settings.phone = document.getElementById('pr-phone').value.trim();
+  saveData(); toast('تم الحفظ ✓');
+}
+
+function renderBackupSettings() {
+  const stats = { hospitals: state.hospitals.length, services: state.services.length, cases: state.cases.length, payments: state.payments.length, expenses: state.expenses.length };
+  return `
+    <div class="space-y-4">
+      <div class="card">
+        <h3 class="font-bold mb-3">📊 الإحصائيات</h3>
+        <ul class="text-sm space-y-1">
+          <li>جهات: <strong>${stats.hospitals}</strong></li>
+          <li>خدمات: <strong>${stats.services}</strong></li>
+          <li>حالات: <strong>${stats.cases}</strong></li>
+          <li>مقبوضات: <strong>${stats.payments}</strong></li>
+          <li>مصاريف: <strong>${stats.expenses}</strong></li>
+        </ul>
+      </div>
+      <div class="card bg-yellow-50 border-r-4 border-yellow-500">
+        <h3 class="font-bold mb-2">⚠️ نسخة احتياطية بانتظام</h3>
+        <p class="text-sm text-gray-700 mb-3">البيانات على هذا الجهاز فقط. صدّر كل أسبوع واحفظ على Google Drive.</p>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="exportBackup()" class="btn btn-success">⬇️ تصدير</button>
+          <label class="btn btn-primary cursor-pointer">⬆️ استيراد<input type="file" accept=".json" onchange="importBackup(event)" class="hidden"></label>
+        </div>
+      </div>
+      <div class="card bg-red-50 border-r-4 border-red-500">
+        <h3 class="font-bold mb-2 text-red-700">🚨 منطقة الخطر</h3>
+        <button onclick="wipeAllData()" class="btn btn-danger">🗑️ حذف كل البيانات</button>
+      </div>
+    </div>`;
+}
+
+function exportBackup() {
+  const data = { version: 4, exportedAt: new Date().toISOString(), hospitals: state.hospitals, services: state.services, prices: state.prices, cases: state.cases, payments: state.payments, expenses: state.expenses, settings: state.settings };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `radiology-backup-${todayISO()}.json`; a.click();
+  URL.revokeObjectURL(url);
+  toast('تم التصدير ✓');
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version) throw new Error('ملف غير صالح');
+      confirmAction('استبدال كل البيانات الحالية؟', () => {
+        state.hospitals = data.hospitals || [];
+        state.services = data.services || [];
+        state.prices = data.prices || [];
+        state.cases = data.cases || [];
+        state.payments = data.payments || [];
+        state.expenses = data.expenses || [];
+        state.settings = data.settings || state.settings;
+        syncPricesMatrix();
+        saveData(); render(); toast('تم الاستيراد ✓');
+      });
+    } catch (err) { toast('ملف غير صالح: ' + err.message, 'error'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function wipeAllData() {
+  confirmAction('حذف كل البيانات؟', () => {
+    confirmAction('تأكيد أخير؟', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      state = { hospitals: [], services: [], prices: [], cases: [], payments: [], expenses: [], settings: { doctorName: '', clinicName: '', phone: '', address: '' }, currentTab: 'dashboard' };
+      seedDefaults(); render(); toast('تمت إعادة التعيين', 'warn');
+    });
+  });
+}
+
+//==============================================================
+// INIT
+//==============================================================
+loadData();
+syncPricesMatrix();
+initNationalitiesList();
+render();
+</script>
+</body>
+</html>
