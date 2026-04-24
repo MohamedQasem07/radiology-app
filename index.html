@@ -74,9 +74,12 @@
 
     /* Login Screen */
     #login-screen { position: fixed; inset: 0; display: flex; background: #0c4a6e; z-index: 100; }
-    .login-bg { flex: 1; background-size: cover; background-position: center; position: relative; min-height: 100vh; background-image: linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0ea5e9 100%); }
-    .login-bg::after { content:''; position:absolute; inset:0; background: linear-gradient(to right, rgba(8,47,73,0.3), rgba(8,47,73,0.7)); }
-    .login-bg-decoration { position: absolute; inset: 0; background-image: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 1px, transparent 1px), radial-gradient(circle at 70% 60%, rgba(255,255,255,0.08) 2px, transparent 2px); background-size: 50px 50px, 80px 80px; }
+    .login-bg { flex: 1; background-size: cover; background-position: center; position: relative; min-height: 100vh; background-image: url('login-bg.png'), linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0ea5e9 100%); background-color: #0c4a6e; }
+    .login-bg::after { content:''; position:absolute; inset:0; background: linear-gradient(to right, rgba(8,47,73,0.15), rgba(8,47,73,0.4)); }
+    .login-bg-decoration { display: none; }
+    .password-wrap { position: relative; }
+    .password-toggle { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; font-size: 18px; }
+    .password-toggle:hover { color: #0ea5e9; }
     .login-form-container { width: 480px; background: white; padding: 50px 40px; display: flex; flex-direction: column; justify-content: center; box-shadow: -10px 0 30px rgba(0,0,0,0.15); position: relative; z-index: 1; overflow-y: auto; }
     .login-logo { text-align: center; margin-bottom: 32px; }
     .login-logo .icon { width: 72px; height: 72px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border-radius: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 38px; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(14,165,233,0.35); }
@@ -148,7 +151,10 @@
         </div>
         <div class="login-input-group">
           <label>كلمة المرور</label>
-          <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••">
+          <div class="password-wrap">
+            <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••" style="padding-left:42px;">
+            <button type="button" class="password-toggle" onclick="togglePassword('login-password', this)" tabindex="-1">👁️</button>
+          </div>
         </div>
         <div id="login-error" style="color:#dc2626; font-size:13px; margin-bottom:12px; min-height:18px;"></div>
         <button type="submit" id="login-submit-btn" class="btn btn-primary w-full" style="width:100%; padding:12px; font-size:15px;">
@@ -579,6 +585,13 @@ function applyLoginBranding() {
   }
 }
 
+function togglePassword(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁️'; }
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -590,16 +603,47 @@ async function handleLogin(e) {
   document.getElementById('login-btn-text').innerHTML = '<span class="spinner"></span> جارٍ التحقق...';
 
   try {
+    console.log('[Login] Attempting sign-in for:', email);
     const { data, error } = await supa.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      console.error('[Login] Auth error:', error);
+      throw error;
+    }
+    console.log('[Login] Auth OK, loading profile...');
     session = data.session;
+
     await loadProfile();
-    if (!profile) { errEl.textContent = 'لا يوجد ملف تعريف لهذا المستخدم. تواصل مع المسؤول.'; await supa.auth.signOut(); return; }
-    if (!profile.active) { errEl.textContent = 'هذا الحساب موقوف. تواصل مع المسؤول.'; await supa.auth.signOut(); return; }
-    await loadAllData();
+    if (!profile) {
+      console.error('[Login] No profile found for user', session.user.id);
+      errEl.textContent = '❌ لا يوجد ملف تعريف. شغّل SQL setup مرة أخرى من Supabase.';
+      await supa.auth.signOut();
+      return;
+    }
+    if (!profile.active) {
+      errEl.textContent = '⛔ هذا الحساب موقوف. تواصل مع المسؤول.';
+      await supa.auth.signOut();
+      return;
+    }
+    console.log('[Login] Profile loaded, role:', profile.role, 'admin:', profile.is_admin);
+
+    try {
+      await loadAllData();
+    } catch (e) {
+      console.error('[Login] Data load error:', e);
+      errEl.textContent = '⚠️ خطأ في تحميل البيانات: ' + e.message;
+      return;
+    }
+
+    console.log('[Login] All data loaded, showing app');
     showApp();
   } catch (err) {
-    errEl.textContent = err.message === 'Invalid login credentials' ? 'البريد أو كلمة المرور غير صحيحة' : 'خطأ: ' + err.message;
+    console.error('[Login] Failed:', err);
+    let msg = err.message || String(err);
+    if (msg === 'Invalid login credentials') msg = '❌ البريد أو كلمة المرور غير صحيحة';
+    else if (msg.includes('Email logins are disabled')) msg = '⚠️ Email Provider مقفول في Supabase — فعّله من Authentication → Providers → Email';
+    else if (msg.includes('Email not confirmed')) msg = '⚠️ البريد لم يتم تأكيده — اعمل Auto Confirm من Supabase Auth → Users → اضغط على المستخدم → Confirm email';
+    else msg = '❌ ' + msg;
+    errEl.textContent = msg;
   } finally {
     btn.disabled = false;
     document.getElementById('login-btn-text').textContent = 'تسجيل الدخول';
