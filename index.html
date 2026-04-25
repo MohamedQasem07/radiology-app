@@ -219,7 +219,8 @@ const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const HOSPITAL_TYPES = [
   { code: 'hospital',        labelAr: 'مستشفى',     label: 'Hospital' },
   { code: 'medical_center',  labelAr: 'مركز طبي',   label: 'Medical Center' },
-  { code: 'company',         labelAr: 'شركة تأمين', label: 'Company' },
+  { code: 'clinic',          labelAr: 'عيادة',       label: 'Clinic' },
+  { code: 'company',         labelAr: 'شركة',        label: 'Company' },
 ];
 
 const PATIENT_TYPES = [
@@ -437,7 +438,49 @@ let ui = {
   pricesFilterClient: '',
   casesFilter: { client: '', from: '', to: '', search: '', cashOnly: '', ptype: '' },
   dashboardFilter: { period: 'month', client: '', from: '', to: '' },
+  pagination: {
+    cases:    { page: 1, size: 10 },
+    payments: { page: 1, size: 10 },
+    expenses: { page: 1, size: 10 },
+  },
 };
+
+function paginate(arr, page, size) {
+  const total = arr.length;
+  const totalPages = Math.max(1, Math.ceil(total / size));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * size;
+  return { items: arr.slice(start, start + size), total, totalPages, page: safePage };
+}
+
+function paginationControls(table, p) {
+  if (p.total === 0) return '';
+  const pages = [];
+  const maxButtons = 7;
+  let from = Math.max(1, p.page - 3);
+  let to = Math.min(p.totalPages, from + maxButtons - 1);
+  from = Math.max(1, to - maxButtons + 1);
+  for (let i = from; i <= to; i++) pages.push(i);
+  return `
+    <div class="flex flex-wrap items-center justify-between gap-3 mt-4 p-3 bg-slate-50 rounded-lg no-print">
+      <div class="flex items-center gap-2 text-sm text-slate-600">
+        <span>عرض</span>
+        <select onchange="ui.pagination.${table}.size=Number(this.value); ui.pagination.${table}.page=1; render()" style="width:auto; padding:4px 8px;">
+          ${[10,20,50,100].map(n => `<option value="${n}" ${p.size === n ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+        <span>من</span>
+        <strong>${p.total}</strong>
+        <span>إجمالي</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button onclick="ui.pagination.${table}.page=1; render()" class="btn-sm px-2 py-1 rounded hover:bg-slate-200" ${p.page === 1 ? 'disabled style="opacity:0.4"' : ''}>«</button>
+        <button onclick="ui.pagination.${table}.page=${p.page - 1}; render()" class="btn-sm px-2 py-1 rounded hover:bg-slate-200" ${p.page === 1 ? 'disabled style="opacity:0.4"' : ''}>‹</button>
+        ${pages.map(n => `<button onclick="ui.pagination.${table}.page=${n}; render()" class="btn-sm px-3 py-1 rounded ${n === p.page ? 'bg-sky-600 text-white font-bold' : 'hover:bg-slate-200'}">${n}</button>`).join('')}
+        <button onclick="ui.pagination.${table}.page=${p.page + 1}; render()" class="btn-sm px-2 py-1 rounded hover:bg-slate-200" ${p.page === p.totalPages ? 'disabled style="opacity:0.4"' : ''}>›</button>
+        <button onclick="ui.pagination.${table}.page=${p.totalPages}; render()" class="btn-sm px-2 py-1 rounded hover:bg-slate-200" ${p.page === p.totalPages ? 'disabled style="opacity:0.4"' : ''}>»</button>
+      </div>
+    </div>`;
+}
 let chartInstances = {};
 
 //==============================================================
@@ -1230,6 +1273,8 @@ function renderCases() {
   }
   filtered.sort((a, b) => (b.case_date || '').localeCompare(a.case_date || ''));
   const totalAmount = filtered.reduce((s, c) => s + caseAmount(c), 0);
+  const paged = paginate(filtered, ui.pagination.cases.page, ui.pagination.cases.size);
+  ui.pagination.cases.page = paged.page;
 
   return `
     <div class="space-y-4">
@@ -1267,7 +1312,7 @@ function renderCases() {
         `<table>
           <thead><tr><th>التاريخ</th><th>المريض</th><th>الجنسية</th><th>النوع</th><th>العميل</th><th>الخدمة</th><th>السعر</th><th>المصدر</th><th>تقرير</th><th></th></tr></thead>
           <tbody>
-            ${filtered.map(c => `
+            ${paged.items.map(c => `
               <tr>
                 <td>${fmtDate(c.case_date)}</td>
                 <td class="font-semibold">${escapeHtml(c.patient_name || '')}</td>
@@ -1288,6 +1333,7 @@ function renderCases() {
               </tr>`).join('')}
           </tbody>
         </table>`}
+        ${paginationControls('cases', paged)}
       </div>
     </div>`;
 }
@@ -2673,24 +2719,43 @@ function addUser(existing = null) {
       if (!name || !email || password.length < 6) { toast('املأ كل الحقول (الباسورد 6 أحرف+)', 'error'); return false; }
       if (role === 'client' && !linkedClient) { toast('اختر العميل المرتبط', 'error'); return false; }
 
-      // Use a temporary client so admin's session isn't affected
-      const tempClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false, storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } }
-      });
-      const { data, error } = await tempClient.auth.signUp({ email, password, options: { data: { full_name: name } } });
-      if (error) throw error;
-      if (!data.user) { toast('فشل إنشاء المستخدم', 'error'); return false; }
+      try {
+        // Use a temporary client so admin's session isn't affected
+        const tempClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false, storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } }
+        });
+        console.log('[addUser] Signing up:', email);
+        const { data, error } = await tempClient.auth.signUp({ email, password, options: { data: { full_name: name } } });
+        if (error) { console.error('[addUser] signUp error:', error); throw error; }
+        if (!data.user) { toast('فشل إنشاء المستخدم', 'error'); return false; }
 
-      // The trigger auto-creates a profile. Now update with role + perms + linked_client
-      const updates = { full_name: name, role, ...ROLE_PRESETS[role], linked_client_id: linkedClient };
-      // Wait briefly for trigger to complete
-      await new Promise(r => setTimeout(r, 500));
-      const { error: updErr } = await supa.from('profiles').update(updates).eq('id', data.user.id);
-      if (updErr) throw updErr;
+        // Wait for trigger to complete profile creation
+        console.log('[addUser] Waiting for profile trigger...');
+        await new Promise(r => setTimeout(r, 1000));
 
-      await reloadTable('profiles');
-      render();
-      toast('تم إنشاء المستخدم ✓');
+        // UPSERT — handles both cases: trigger ran, or didn't
+        const profileData = {
+          id: data.user.id,
+          email,
+          full_name: name,
+          role,
+          active: true,
+          linked_client_id: linkedClient,
+          ...ROLE_PRESETS[role],
+        };
+        console.log('[addUser] Upserting profile:', profileData);
+        const { error: upErr } = await supa.from('profiles').upsert(profileData, { onConflict: 'id' });
+        if (upErr) { console.error('[addUser] upsert error:', upErr); throw upErr; }
+
+        await reloadTable('profiles');
+        render();
+        toast('تم إنشاء المستخدم ✓');
+      } catch (e) {
+        const detail = e.details || e.hint || e.code || '';
+        console.error('[addUser] FAILED:', e);
+        toast('خطأ: ' + (e.message || 'unknown') + (detail ? ' (' + detail + ')' : ''), 'error');
+        return false;
+      }
     }, { width: '600px' });
 
     // Toggle client field based on role
