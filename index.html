@@ -833,7 +833,7 @@ const TABS = [
   { id: 'payments',  label: 'المقبوضات',    icon: '💰', canShow: () => can('perm_view_finance') || can('perm_view_own_finance') },
   { id: 'expenses',  label: 'المصاريف',     icon: '📉', canShow: () => can('perm_view_finance') && !isClientPortal() },
   { id: 'statement', label: 'كشف حساب',    icon: '📄', canShow: () => can('perm_view_finance') || can('perm_view_own_finance') },
-  { id: 'clients',   label: 'العملاء',      icon: '🏥', canShow: () => (can('perm_view_dashboard') || can('perm_view_finance') || can('perm_manage_clients')) && !isClientPortal() },
+  { id: 'clients',   label: 'العملاء',      icon: '🏥', canShow: () => (can('perm_view_finance') || can('perm_manage_clients')) && !isClientPortal() },
   { id: 'settings',  label: 'الإعدادات',    icon: '⚙️', canShow: () => true },
 ];
 
@@ -968,7 +968,7 @@ function renderDashboard() {
         </div>
       </div>
 
-      ${overdueClients.length > 0 ? `
+      ${can('perm_view_finance') && overdueClients.length > 0 ? `
         <div class="card" style="border-right:4px solid #f59e0b; background:#fffbeb;">
           <div class="flex items-start gap-3">
             <span style="font-size:24px;">⚠️</span>
@@ -983,101 +983,107 @@ function renderDashboard() {
         </div>
       ` : ''}
 
-      <!-- KPI Cards -->
+      <!-- KPI Cards (case count is always shown; financial KPIs gated) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="kpi-card" style="border-right-color:#0ea5e9;">
           <div class="label">عدد الحالات في الفترة</div>
           <div class="value">${fmtNum(casesInRange.length)}</div>
         </div>
-        <div class="kpi-card" style="border-right-color:#10b981;">
-          <div class="label">دخل الفترة</div>
-          <div class="value">${fmt(periodIncome)}</div>
-          <div class="sub">من المستشفيات: ${fmt(periodFromHospitals)} | كاش: ${fmt(periodCashDirect)}</div>
-        </div>
-        <div class="kpi-card" style="border-right-color:#ef4444;">
-          <div class="label">مصاريف الفترة</div>
-          <div class="value">${fmt(periodExpenses)}</div>
-        </div>
-        <div class="kpi-card" style="border-right-color:#f59e0b;">
-          <div class="label">إجمالي المتبقي على العملاء</div>
-          <div class="value">${fmt(totalDue)}</div>
-        </div>
+        ${can('perm_view_finance') ? `
+          <div class="kpi-card" style="border-right-color:#10b981;">
+            <div class="label">دخل الفترة</div>
+            <div class="value">${fmt(periodIncome)}</div>
+            <div class="sub">من المستشفيات: ${fmt(periodFromHospitals)} | كاش: ${fmt(periodCashDirect)}</div>
+          </div>
+          <div class="kpi-card" style="border-right-color:#ef4444;">
+            <div class="label">مصاريف الفترة</div>
+            <div class="value">${fmt(periodExpenses)}</div>
+          </div>
+          <div class="kpi-card" style="border-right-color:#f59e0b;">
+            <div class="label">إجمالي المتبقي على العملاء</div>
+            <div class="value">${fmt(totalDue)}</div>
+          </div>
+        ` : ''}
       </div>
 
-      <!-- Summary -->
-      <div class="card">
-        <h3 class="font-bold mb-3 text-slate-800">📊 الملخص الإجمالي (كل العمر)</h3>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-center text-sm">
-          <div class="p-2 bg-slate-50 rounded-lg"><div class="text-xs text-slate-500">رصيد أول مدة</div><div class="font-bold text-slate-800 text-lg">${fmt(totalOpening)}</div></div>
-          <div class="p-2 bg-sky-50 rounded-lg"><div class="text-xs text-slate-500">من المستشفيات</div><div class="font-bold text-sky-700 text-lg">${fmt(totalEarnedHospitals)}</div></div>
-          <div class="p-2 bg-emerald-50 rounded-lg"><div class="text-xs text-slate-500">كاش مباشر 💵</div><div class="font-bold text-emerald-700 text-lg">${fmt(totalCashDirect)}</div></div>
-          <div class="p-2 bg-green-50 rounded-lg"><div class="text-xs text-slate-500">المحصَّل</div><div class="font-bold text-green-700 text-lg">${fmt(totalPaid)}</div></div>
-          <div class="p-2 bg-red-50 rounded-lg"><div class="text-xs text-slate-500">المتبقي</div><div class="font-bold text-red-700 text-lg">${fmt(totalOpening + totalEarnedHospitals - totalPaid)}</div></div>
-        </div>
-      </div>
-
-      <!-- Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      ${can('perm_view_finance') ? `
+        <!-- Summary -->
         <div class="card">
-          <h3 class="font-bold mb-3 text-slate-800">📈 الدخل خلال آخر 6 شهور</h3>
-          <div style="position:relative; height:280px;"><canvas id="chart-income"></canvas></div>
+          <h3 class="font-bold mb-3 text-slate-800">📊 الملخص الإجمالي (كل العمر)</h3>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-center text-sm">
+            <div class="p-2 bg-slate-50 rounded-lg"><div class="text-xs text-slate-500">رصيد أول مدة</div><div class="font-bold text-slate-800 text-lg">${fmt(totalOpening)}</div></div>
+            <div class="p-2 bg-sky-50 rounded-lg"><div class="text-xs text-slate-500">من المستشفيات</div><div class="font-bold text-sky-700 text-lg">${fmt(totalEarnedHospitals)}</div></div>
+            <div class="p-2 bg-emerald-50 rounded-lg"><div class="text-xs text-slate-500">كاش مباشر 💵</div><div class="font-bold text-emerald-700 text-lg">${fmt(totalCashDirect)}</div></div>
+            <div class="p-2 bg-green-50 rounded-lg"><div class="text-xs text-slate-500">المحصَّل</div><div class="font-bold text-green-700 text-lg">${fmt(totalPaid)}</div></div>
+            <div class="p-2 bg-red-50 rounded-lg"><div class="text-xs text-slate-500">المتبقي</div><div class="font-bold text-red-700 text-lg">${fmt(totalOpening + totalEarnedHospitals - totalPaid)}</div></div>
+          </div>
         </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="card">
+            <h3 class="font-bold mb-3 text-slate-800">📈 الدخل خلال آخر 6 شهور</h3>
+            <div style="position:relative; height:280px;"><canvas id="chart-income"></canvas></div>
+          </div>
+          <div class="card">
+            <h3 class="font-bold mb-3 text-slate-800">🥧 توزيع الخدمات (الأكثر طلباً)</h3>
+            <div style="position:relative; height:280px;"><canvas id="chart-services"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Per-client dues -->
         <div class="card">
-          <h3 class="font-bold mb-3 text-slate-800">🥧 توزيع الخدمات (الأكثر طلباً)</h3>
-          <div style="position:relative; height:280px;"><canvas id="chart-services"></canvas></div>
+          <h3 class="font-bold mb-3 text-slate-800">💵 المستحقات على كل عميل</h3>
+          ${dues.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد عملاء نشطين.</p>` :
+            `<div class="overflow-x-auto">
+              <table>
+                <thead><tr><th>العميل</th><th>النوع</th><th>عدد الحالات</th><th>مكتسب</th><th>محصَّل</th><th>المتبقي</th><th>آخر تعامل</th><th class="no-print"></th></tr></thead>
+                <tbody>
+                  ${dues.map(d => {
+                    const casesCount = appData.cases.filter(c => c.client_id === d.client.id).length;
+                    return `<tr>
+                      <td class="font-semibold">${escapeHtml(d.client.name)}</td>
+                      <td><span class="badge badge-gray">${clientTypeLabel(d.client.type)}</span></td>
+                      <td>${fmtNum(casesCount)}</td>
+                      <td>${fmt(d.earned)}</td>
+                      <td class="text-emerald-600">${fmt(d.paid)}</td>
+                      <td class="font-bold ${d.due > 0 ? 'text-red-600' : 'text-emerald-600'}">${fmt(d.due)}</td>
+                      <td class="text-xs ${d.daysOverdue && d.daysOverdue > 30 ? 'text-amber-700 font-bold' : 'text-slate-500'}">${d.lastActivity ? fmtDate(d.lastActivity) + (d.daysOverdue ? ' (' + d.daysOverdue + ' يوم)' : '') : '—'}</td>
+                      <td class="no-print"><button onclick="viewClientStatement('${d.client.id}')" class="text-sky-600 text-sm hover:underline">كشف حساب</button></td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>`}
         </div>
-      </div>
+      ` : ''}
 
-      <!-- Per-client dues -->
-      <div class="card">
-        <h3 class="font-bold mb-3 text-slate-800">💵 المستحقات على كل عميل</h3>
-        ${dues.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد عملاء نشطين.</p>` :
-          `<div class="overflow-x-auto">
-            <table>
-              <thead><tr><th>العميل</th><th>النوع</th><th>عدد الحالات</th><th>مكتسب</th><th>محصَّل</th><th>المتبقي</th><th>آخر تعامل</th><th class="no-print"></th></tr></thead>
-              <tbody>
-                ${dues.map(d => {
-                  const casesCount = appData.cases.filter(c => c.client_id === d.client.id).length;
-                  return `<tr>
-                    <td class="font-semibold">${escapeHtml(d.client.name)}</td>
-                    <td><span class="badge badge-gray">${clientTypeLabel(d.client.type)}</span></td>
-                    <td>${fmtNum(casesCount)}</td>
-                    <td>${fmt(d.earned)}</td>
-                    <td class="text-emerald-600">${fmt(d.paid)}</td>
-                    <td class="font-bold ${d.due > 0 ? 'text-red-600' : 'text-emerald-600'}">${fmt(d.due)}</td>
-                    <td class="text-xs ${d.daysOverdue && d.daysOverdue > 30 ? 'text-amber-700 font-bold' : 'text-slate-500'}">${d.lastActivity ? fmtDate(d.lastActivity) + (d.daysOverdue ? ' (' + d.daysOverdue + ' يوم)' : '') : '—'}</td>
-                    <td class="no-print"><button onclick="viewClientStatement('${d.client.id}')" class="text-sky-600 text-sm hover:underline">كشف حساب</button></td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>`}
-      </div>
-
-      <!-- Recent cases -->
-      <div class="card">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="font-bold text-slate-800">📋 آخر الحالات</h3>
-          <button onclick="switchTab('cases')" class="text-sky-600 text-sm hover:underline">عرض الكل ←</button>
+      ${can('perm_view_cases') ? `
+        <!-- Recent cases -->
+        <div class="card">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-bold text-slate-800">📋 آخر الحالات</h3>
+            <button onclick="switchTab('cases')" class="text-sky-600 text-sm hover:underline">عرض الكل ←</button>
+          </div>
+          ${recentCases.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد حالات بعد.</p>` :
+            `<div class="overflow-x-auto">
+              <table>
+                <thead><tr><th>التاريخ</th><th>المريض</th><th>العميل</th><th>الخدمة</th>${can('perm_view_finance') ? '<th>السعر</th>' : ''}<th>المصدر</th></tr></thead>
+                <tbody>
+                  ${recentCases.map(c => `
+                    <tr>
+                      <td>${fmtDate(c.case_date)}</td>
+                      <td class="font-semibold">${escapeHtml(c.patient_name || '')}</td>
+                      <td>${escapeHtml(findClient(c.client_id)?.name || '?')}</td>
+                      <td>${escapeHtml(findService(c.service_id)?.name || '?')}</td>
+                      ${can('perm_view_finance') ? `<td class="font-bold">${fmt(caseAmount(c))}</td>` : ''}
+                      <td>${c.cash_direct ? '<span class="badge badge-green">💵 كاش</span>' : '<span class="badge badge-blue">🏥</span>'}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>`}
         </div>
-        ${recentCases.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد حالات بعد.</p>` :
-          `<div class="overflow-x-auto">
-            <table>
-              <thead><tr><th>التاريخ</th><th>المريض</th><th>العميل</th><th>الخدمة</th><th>السعر</th><th>المصدر</th></tr></thead>
-              <tbody>
-                ${recentCases.map(c => `
-                  <tr>
-                    <td>${fmtDate(c.case_date)}</td>
-                    <td class="font-semibold">${escapeHtml(c.patient_name || '')}</td>
-                    <td>${escapeHtml(findClient(c.client_id)?.name || '?')}</td>
-                    <td>${escapeHtml(findService(c.service_id)?.name || '?')}</td>
-                    <td class="font-bold">${fmt(caseAmount(c))}</td>
-                    <td>${c.cash_direct ? '<span class="badge badge-green">💵 كاش</span>' : '<span class="badge badge-blue">🏥</span>'}</td>
-                  </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>`}
-      </div>
+      ` : ''}
     </div>`;
 }
 
