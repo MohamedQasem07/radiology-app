@@ -2,8 +2,17 @@
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
   <title>مدير حالات د. أحمد علي</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0ea5e9">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cases Manager">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Times+New+Roman&display=swap" rel="stylesheet">
@@ -63,6 +72,90 @@
 
     .toast-box { animation: slideIn 0.3s ease; }
     @keyframes slideIn { from { transform: translateX(-30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ===== APP-LIKE ANIMATIONS ===== */
+    /* Modal slide-up + fade */
+    .modal-backdrop { animation: backdropFadeIn 0.2s ease-out; }
+    @keyframes backdropFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-content { animation: modalSlideUp 0.32s cubic-bezier(.2,.9,.3,1.4); transform-origin: center bottom; }
+    @keyframes modalSlideUp {
+      0% { opacity: 0; transform: translateY(40px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Tab content fade-in (smooth page transition) */
+    #main-content { animation: contentEnter 0.28s cubic-bezier(.2,.7,.3,1); }
+    @keyframes contentEnter {
+      0% { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Tab button press feedback */
+    .tab-btn { transition: all 0.18s cubic-bezier(.2,.7,.3,1); }
+    .tab-btn:active:not(.tab-active) { transform: scale(0.94); background: #e0f2fe; }
+    .tab-active { animation: tabPop 0.3s ease-out; }
+    @keyframes tabPop {
+      0% { transform: scale(0.92); }
+      60% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    /* Card press feedback (tap effect on mobile) */
+    .card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .kpi-card:active { transform: scale(0.97); }
+    .chooser-card:active { transform: scale(0.97); }
+
+    /* Button ripple-like effect */
+    .btn { position: relative; overflow: hidden; transform: translateZ(0); }
+    .btn:active { transform: scale(0.96); }
+
+    /* ===== MOBILE-FIRST IMPROVEMENTS ===== */
+    @media (max-width: 768px) {
+      /* Larger tap targets on mobile */
+      .btn { padding: 12px 18px; font-size: 15px; min-height: 44px; }
+      .tab-btn { padding: 10px 14px; min-height: 42px; }
+      input, select, textarea { padding: 12px 14px; font-size: 16px; min-height: 44px; }
+
+      /* Sticky header with safe-area for notched phones */
+      .app-header { padding-top: max(12px, env(safe-area-inset-top)) !important; }
+
+      /* Make table buttons easier to tap */
+      table .btn-sm, table button { min-height: 36px; padding: 6px 10px; }
+
+      /* Reduce horizontal padding waste */
+      .max-w-7xl { padding-left: 12px; padding-right: 12px; }
+      .modal-content { padding: 18px; border-radius: 18px 18px 8px 8px; }
+      .modal-backdrop { align-items: flex-end; padding: 0; }
+      .modal-content { max-height: 92vh; margin-bottom: 0; border-radius: 20px 20px 0 0; }
+      @keyframes modalSlideUp {
+        0% { opacity: 0; transform: translateY(100%); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Pill-style tabs scroll smoothly */
+      #tabs { scroll-snap-type: x mandatory; padding: 4px; }
+      #tabs button { scroll-snap-align: start; flex-shrink: 0; }
+    }
+
+    /* Smooth scrolling everywhere */
+    html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+
+    /* Splash for first-load PWA */
+    body.pwa-mode { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+
+    /* Install prompt banner */
+    #install-banner {
+      position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 90;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white;
+      padding: 14px 18px; border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(14,165,233,0.4);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      animation: slideUpBanner 0.4s ease-out;
+      max-width: 480px; margin: 0 auto;
+    }
+    @keyframes slideUpBanner { from { transform: translateY(120%); } to { transform: translateY(0); } }
+    #install-banner button { background: white; color: #0c4a6e; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    #install-banner .close-btn { background: transparent; color: white; padding: 4px 8px; opacity: 0.7; }
 
     .chooser-card { border: 2px solid #e2e8f0; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.15s; background: white; text-align: right; width: 100%; }
     .chooser-card:hover { border-color: #0ea5e9; background: #f0f9ff; transform: translateY(-1px); }
@@ -200,11 +293,59 @@
 
   <div id="modal-container"></div>
   <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div>
+  <div id="install-banner" hidden>
+    <span>📱 ثبّت البرنامج كتطبيق على شاشتك الرئيسية</span>
+    <div>
+      <button onclick="installPWA()">تثبيت</button>
+      <button class="close-btn" onclick="document.getElementById('install-banner').hidden=true; localStorage.setItem('install-dismissed','1')">✕</button>
+    </div>
+  </div>
   <div id="full-loading" class="full-loading" hidden><div class="text-center"><div class="spinner" style="border-color:#cbd5e1; border-top-color:#0ea5e9; margin: 0 auto;"></div><div class="mt-3 text-slate-600">جارٍ التحميل...</div></div></div>
   <datalist id="nationalities-datalist"></datalist>
   <datalist id="patients-datalist"></datalist>
 
 <script>
+//==============================================================
+// PWA — Service Worker registration + Install prompt
+//==============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(reg => console.log('[PWA] SW registered:', reg.scope))
+      .catch(err => console.log('[PWA] SW registration failed:', err));
+  });
+}
+
+// Detect standalone (PWA) mode
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+  document.body.classList.add('pwa-mode');
+}
+
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem('install-dismissed')) {
+    setTimeout(() => {
+      const banner = document.getElementById('install-banner');
+      if (banner) banner.hidden = false;
+    }, 5000);
+  }
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').hidden = true;
+  console.log('[PWA] Installed');
+});
+async function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const result = await deferredPrompt.userChoice;
+  if (result.outcome === 'accepted') {
+    document.getElementById('install-banner').hidden = true;
+  }
+  deferredPrompt = null;
+}
+
 //==============================================================
 // CONFIG
 //==============================================================
