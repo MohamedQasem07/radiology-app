@@ -2740,11 +2740,15 @@ function addUser(existing = null) {
         await new Promise(r => setTimeout(r, 1000));
 
         // UPSERT — handles both cases: trigger ran, or didn't
+        // Use 'custom' as safe role value (works across all DB versions);
+        // client portal is identified by linked_client_id, not role string.
+        const SAFE_ROLES = ['owner','doctor','secretary','accountant','custom'];
+        const safeRole = SAFE_ROLES.includes(role) ? role : 'custom';
         const profileData = {
           id: data.user.id,
           email,
           full_name: name,
-          role,
+          role: safeRole,
           active: true,
           linked_client_id: linkedClient,
           ...ROLE_PRESETS[role],
@@ -2839,7 +2843,9 @@ function editUser(userId) {
       full_name: document.getElementById('eu-name').value.trim(),
     };
     if (!isMe) {
-      updates.role = document.getElementById('eu-role').value;
+      const SAFE_ROLES = ['owner','doctor','secretary','accountant','custom'];
+      const chosenRole = document.getElementById('eu-role').value;
+      updates.role = SAFE_ROLES.includes(chosenRole) ? chosenRole : 'custom';
       updates.linked_client_id = document.getElementById('eu-client').value || null;
       updates.active = document.getElementById('eu-active').checked;
       if (profile.is_admin) {
