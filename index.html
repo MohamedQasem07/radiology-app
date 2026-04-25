@@ -72,6 +72,9 @@
     .report-edit .sec-content-edit { width: 100%; min-height: 80px; border: 1px dashed #94a3b8; padding: 8px; font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.6; direction: ltr; text-align: left; background: #fafafa; border-radius: 6px; }
     .report-edit .sec-heading-edit { width: 100%; font-weight: bold; font-style: italic; font-size: 15px; border: 1px dashed #cbd5e1; padding: 5px; margin-bottom: 4px; border-radius: 6px; }
 
+    /* Force hidden attribute to override flex/grid display */
+    [hidden] { display: none !important; }
+
     /* Login Screen */
     #login-screen { position: fixed; inset: 0; display: flex; background: #0c4a6e; z-index: 100; }
     .login-bg { flex: 1; background-size: cover; background-position: center; position: relative; min-height: 100vh; background-image: url('login-bg.png'), linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0ea5e9 100%); background-color: #0c4a6e; }
