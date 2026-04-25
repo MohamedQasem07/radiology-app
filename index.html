@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>برنامج إدارة طبيب الأشعة</title>
+  <title>مدير حالات د. أحمد علي</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Times+New+Roman&display=swap" rel="stylesheet">
@@ -144,7 +144,7 @@
     <div class="login-form-container">
       <div class="login-logo">
         <div class="icon">🩻</div>
-        <h1 id="login-title">برنامج إدارة طبيب الأشعة</h1>
+        <h1 id="login-title">مدير حالات د. أحمد علي</h1>
         <p id="login-subtitle">Radiology Practice Management</p>
       </div>
       <form id="login-form" onsubmit="handleLogin(event)">
@@ -178,7 +178,7 @@
           <div class="flex items-center gap-3">
             <span class="brand-icon">🩻</span>
             <div>
-              <h1 class="text-base md:text-lg font-bold text-slate-800" id="app-clinic-name">برنامج طبيب الأشعة</h1>
+              <h1 class="text-base md:text-lg font-bold text-slate-800" id="app-clinic-name">مدير حالات د. أحمد علي</h1>
               <p class="text-xs text-slate-500" id="app-clinic-sub"></p>
             </div>
           </div>
@@ -228,8 +228,7 @@ const PATIENT_TYPES = [
   { code: 'resident', labelAr: 'مقيم',  priceField: 'price_resident' },
 ];
 
-const EXPENSE_CATEGORIES = ['إيجار','كهرباء/مياه','مواصلات','أدوات مكتبية','اتصالات','طعام','صيانة','مرتبات','ضرائب','أخرى'];
-const PAYMENT_METHODS = ['كاش','تحويل بنكي','فودافون كاش','انستا باي','شيك','أخرى'];
+// EXPENSE_CATEGORIES + PAYMENT_METHODS now loaded from Supabase tables (expense_categories / payment_methods)
 
 const NATIONALITIES = [
   'Resident','Afghan','Åland Island','Albanian','Algerian','American','United States','U.S.',
@@ -429,7 +428,8 @@ let profile = null;  // current user's profile row with permissions
 let appData = {
   clients: [], services: [], prices: [],
   cases: [], payments: [], expenses: [],
-  profiles: [], settings: {}
+  profiles: [], settings: {},
+  expense_categories: [], payment_methods: []
 };
 let ui = {
   currentTab: 'dashboard',
@@ -682,7 +682,7 @@ async function showResetPassword(e) {
 async function loadAllData() {
   showLoading(true);
   try {
-    const [clients, services, prices, settings, cases, payments, expenses, profiles] = await Promise.all([
+    const [clients, services, prices, settings, cases, payments, expenses, profiles, expenseCats, paymentMethods] = await Promise.all([
       supa.from('clients').select('*').order('name'),
       supa.from('services').select('*').order('sort_order').order('name'),
       supa.from('prices').select('*'),
@@ -691,6 +691,8 @@ async function loadAllData() {
       supa.from('payments').select('*').order('payment_date', { ascending: false }),
       supa.from('expenses').select('*').order('expense_date', { ascending: false }),
       supa.from('profiles').select('*').order('full_name'),
+      supa.from('expense_categories').select('*').eq('active', true).order('sort_order').order('name'),
+      supa.from('payment_methods').select('*').eq('active', true).order('sort_order').order('name'),
     ]);
     appData.clients = clients.data || [];
     appData.services = services.data || [];
@@ -700,6 +702,8 @@ async function loadAllData() {
     appData.payments = payments.data || [];
     appData.expenses = expenses.data || [];
     appData.profiles = profiles.data || [];
+    appData.expense_categories = expenseCats.data || [];
+    appData.payment_methods = paymentMethods.data || [];
   } catch (e) {
     console.error(e);
     toast('خطأ في تحميل البيانات: ' + e.message, 'error');
@@ -709,8 +713,8 @@ async function loadAllData() {
 }
 
 async function reloadTable(table) {
-  const orderBy = { cases: 'case_date', payments: 'payment_date', expenses: 'expense_date', services: 'sort_order', clients: 'name', profiles: 'full_name', prices: 'id' }[table];
-  const ascending = ['services','clients','profiles','prices'].includes(table);
+  const orderBy = { cases: 'case_date', payments: 'payment_date', expenses: 'expense_date', services: 'sort_order', clients: 'name', profiles: 'full_name', prices: 'id', expense_categories: 'sort_order', payment_methods: 'sort_order' }[table];
+  const ascending = ['services','clients','profiles','prices','expense_categories','payment_methods'].includes(table);
   const { data } = await supa.from(table).select('*').order(orderBy, { ascending });
   appData[table] = data || [];
 }
@@ -758,7 +762,7 @@ function applyAppBranding() {
     document.getElementById('app-clinic-name').textContent = s.clinic_name;
   }
   document.getElementById('app-clinic-sub').textContent = s.address || '';
-  document.title = (s.clinic_name || 'برنامج طبيب الأشعة');
+  document.title = (s.clinic_name || 'مدير حالات د. أحمد علي');
   document.getElementById('user-name').textContent = profile?.full_name || '—';
   document.getElementById('user-avatar').textContent = (profile?.full_name || '?').charAt(0).toUpperCase();
   document.getElementById('user-role').textContent = ROLE_LABELS[profile?.role] || ROLE_LABELS.custom;
@@ -1108,7 +1112,7 @@ function renderNewCase() {
             <label>العميل *</label>
             <select id="nc-client" required onchange="updatePriceFromForm()">
               <option value="">-- اختر --</option>
-              ${appData.clients.filter(h => h.active !== false).map(h => `<option value="${h.id}">${escapeHtml(h.name)} — ${clientTypeLabel(h.type)}</option>`).join('')}
+              ${appData.clients.filter(h => h.active !== false).map(h => `<option value="${h.id}">${escapeHtml(h.name)}</option>`).join('')}
             </select>
           </div>
           <div>
@@ -1120,10 +1124,9 @@ function renderNewCase() {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label>اسم المريض *</label><input type="text" id="nc-patient" list="patients-datalist" required placeholder="Ahmed Mohamed"></div>
           <div><label>تاريخ الميلاد</label><input type="date" id="nc-dob"></div>
-          <div><label>تليفون المريض</label><input type="tel" id="nc-phone" placeholder="+20..." dir="ltr"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1186,20 +1189,26 @@ async function saveNewCase(e) {
       service_id: document.getElementById('nc-service').value || null,
       patient_name: document.getElementById('nc-patient').value.trim(),
       date_of_birth: document.getElementById('nc-dob').value || null,
-      patient_phone: document.getElementById('nc-phone').value.trim() || null,
       nationality: document.getElementById('nc-nationality').value.trim() || null,
       patient_type: document.getElementById('nc-type').value,
       price: Number(document.getElementById('nc-price').value) || 0,
       cash_direct: cashDirect,
       notes: document.getElementById('nc-notes').value.trim() || null,
     };
+    console.log('[saveCase] Inserting:', data);
     const { error } = await supa.from('cases').insert(data);
-    if (error) throw error;
+    if (error) {
+      console.error('[saveCase] Supabase error:', error);
+      throw error;
+    }
     await reloadTable('cases');
     refreshPatientsDatalist();
     toast('تم حفظ الحالة ✓');
     switchTab('cases');
-  } catch (e) { toast('خطأ: ' + e.message, 'error'); }
+  } catch (e) {
+    const detail = e.details || e.hint || e.code || '';
+    toast('خطأ: ' + (e.message || 'unknown') + (detail ? ' (' + detail + ')' : ''), 'error');
+  }
   finally { submitBtn.disabled = false; }
 }
 
@@ -1292,10 +1301,7 @@ function editCase(id) {
         <div><label>التاريخ</label><input type="date" id="ec-date" value="${c.case_date || ''}"></div>
         <div><label>تاريخ الميلاد</label><input type="date" id="ec-dob" value="${c.date_of_birth || ''}"></div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label>اسم المريض</label><input type="text" id="ec-patient" list="patients-datalist" value="${escapeHtml(c.patient_name || '')}"></div>
-        <div><label>تليفون المريض</label><input type="tel" id="ec-phone" value="${escapeHtml(c.patient_phone || '')}" dir="ltr"></div>
-      </div>
+      <div><label>اسم المريض</label><input type="text" id="ec-patient" list="patients-datalist" value="${escapeHtml(c.patient_name || '')}"></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label>الجنسية</label><input type="text" id="ec-nat" list="nationalities-datalist" value="${escapeHtml(c.nationality || '')}"></div>
         <div><label>نوع المريض</label>
@@ -1326,7 +1332,6 @@ function editCase(id) {
       case_date: document.getElementById('ec-date').value,
       date_of_birth: document.getElementById('ec-dob').value || null,
       patient_name: document.getElementById('ec-patient').value.trim(),
-      patient_phone: document.getElementById('ec-phone').value.trim() || null,
       nationality: document.getElementById('ec-nat').value.trim() || null,
       patient_type: document.getElementById('ec-type').value,
       client_id: document.getElementById('ec-client').value || null,
@@ -1335,8 +1340,9 @@ function editCase(id) {
       cash_direct: document.getElementById('ec-cash').checked,
       notes: document.getElementById('ec-notes').value.trim() || null,
     };
+    console.log('[editCase] Updating:', data);
     const { error } = await supa.from('cases').update(data).eq('id', c.id);
-    if (error) throw error;
+    if (error) { console.error('[editCase] error:', error); throw error; }
     await reloadTable('cases');
     refreshPatientsDatalist();
     render();
@@ -1676,13 +1682,19 @@ function renderPayments() {
 
 function addPayment(existing = null) {
   if (appData.clients.length === 0) { toast('أضف عميل أولاً', 'warn'); return; }
-  const p = existing || { payment_date: todayISO(), client_id: '', amount: 0, method: 'كاش', notes: '' };
+  const methods = appData.payment_methods.map(m => m.name);
+  const defaultMethod = methods[0] || '';
+  const p = existing || { payment_date: todayISO(), client_id: '', amount: 0, method: defaultMethod, notes: '' };
+  const methodsHtml = methods.length > 0
+    ? `<select id="pm-method">${methods.map(m => `<option ${p.method === m ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('')}</select>`
+    : `<div class="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">⚠️ لا توجد طرق دفع — أضف من الإعدادات → الفئات والطرق</div>
+       <input type="text" id="pm-method" value="${escapeHtml(p.method || '')}" placeholder="اكتب طريقة الدفع" class="mt-2">`;
   const body = `
     <div class="space-y-3">
       <div><label>التاريخ</label><input type="date" id="pm-date" value="${p.payment_date || todayISO()}"></div>
       <div><label>العميل</label><select id="pm-client"><option value="">-- اختر --</option>${appData.clients.map(h => `<option value="${h.id}" ${h.id === p.client_id ? 'selected' : ''}>${escapeHtml(h.name)}</option>`).join('')}</select></div>
       <div><label>المبلغ (ج.م)</label><input type="number" step="0.01" min="0" id="pm-amount" value="${p.amount || ''}"></div>
-      <div><label>طريقة الدفع</label><select id="pm-method">${PAYMENT_METHODS.map(m => `<option ${p.method === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+      <div><label>طريقة الدفع</label>${methodsHtml}</div>
       <div><label>ملاحظات</label><textarea id="pm-notes" rows="2">${escapeHtml(p.notes || '')}</textarea></div>
     </div>`;
   openModal(existing ? 'تعديل مقبوض' : 'إضافة مقبوض', body, async () => {
@@ -1690,7 +1702,7 @@ function addPayment(existing = null) {
       payment_date: document.getElementById('pm-date').value,
       client_id: document.getElementById('pm-client').value || null,
       amount: Number(document.getElementById('pm-amount').value) || 0,
-      method: document.getElementById('pm-method').value,
+      method: document.getElementById('pm-method').value || null,
       notes: document.getElementById('pm-notes').value.trim() || null,
     };
     if (!data.client_id) { toast('اختر عميل', 'error'); return false; }
@@ -1698,7 +1710,7 @@ function addPayment(existing = null) {
     const { error } = existing
       ? await supa.from('payments').update(data).eq('id', existing.id)
       : await supa.from('payments').insert(data);
-    if (error) throw error;
+    if (error) { console.error('[payment] error:', error); throw error; }
     await reloadTable('payments');
     render();
     toast(existing ? 'تم التحديث ✓' : 'تم الحفظ ✓');
@@ -1756,18 +1768,24 @@ function renderExpenses() {
 }
 
 function addExpense(existing = null) {
-  const e = existing || { expense_date: todayISO(), category: EXPENSE_CATEGORIES[0], description: '', amount: 0 };
+  const cats = appData.expense_categories.map(c => c.name);
+  const defaultCat = cats[0] || '';
+  const e = existing || { expense_date: todayISO(), category: defaultCat, description: '', amount: 0 };
+  const catHtml = cats.length > 0
+    ? `<select id="ex-cat">${cats.map(c => `<option ${c === e.category ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}</select>`
+    : `<div class="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">⚠️ لا توجد فئات — أضف من الإعدادات → الفئات والطرق</div>
+       <input type="text" id="ex-cat" value="${escapeHtml(e.category || '')}" placeholder="اكتب الفئة" class="mt-2">`;
   const body = `
     <div class="space-y-3">
       <div><label>التاريخ</label><input type="date" id="ex-date" value="${e.expense_date || todayISO()}"></div>
-      <div><label>الفئة</label><select id="ex-cat">${EXPENSE_CATEGORIES.map(c => `<option ${c === e.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label>الفئة</label>${catHtml}</div>
       <div><label>الوصف</label><input type="text" id="ex-desc" value="${escapeHtml(e.description || '')}"></div>
       <div><label>المبلغ (ج.م)</label><input type="number" step="0.01" min="0" id="ex-amount" value="${e.amount || ''}"></div>
     </div>`;
   openModal(existing ? 'تعديل مصروف' : 'إضافة مصروف', body, async () => {
     const data = {
       expense_date: document.getElementById('ex-date').value,
-      category: document.getElementById('ex-cat').value,
+      category: document.getElementById('ex-cat').value || null,
       description: document.getElementById('ex-desc').value.trim() || null,
       amount: Number(document.getElementById('ex-amount').value) || 0,
     };
@@ -1775,7 +1793,7 @@ function addExpense(existing = null) {
     const { error } = existing
       ? await supa.from('expenses').update(data).eq('id', existing.id)
       : await supa.from('expenses').insert(data);
-    if (error) throw error;
+    if (error) { console.error('[expense] error:', error); throw error; }
     await reloadTable('expenses');
     render();
     toast(existing ? 'تم التحديث ✓' : 'تم الحفظ ✓');
@@ -1871,7 +1889,7 @@ function generateStatement() {
     <div class="card space-y-4" id="stmt-doc" style="background:white;">
       ${headerImg ? `<div class="text-center">${headerImg}</div>` : `
         <div class="text-center pb-3 border-b-2 border-slate-300">
-          <h1 class="text-2xl font-extrabold text-slate-900">${escapeHtml(settings.clinic_name || 'عيادة طبيب الأشعة')}</h1>
+          <h1 class="text-2xl font-extrabold text-slate-900">${escapeHtml(settings.clinic_name || 'مدير حالات د. أحمد علي')}</h1>
           ${settings.doctor_name ? `<p class="text-sm text-slate-600 mt-1">د. ${escapeHtml(settings.doctor_name)}</p>` : ''}
           ${settings.address ? `<p class="text-xs text-slate-500">${escapeHtml(settings.address)}</p>` : ''}
           ${settings.phone ? `<p class="text-xs text-slate-500">📞 ${escapeHtml(settings.phone)}</p>` : ''}
@@ -2113,6 +2131,7 @@ function renderSettings() {
     { id: 'services',  label: '🩻 الخدمات',          show: () => can('perm_manage_services') },
     { id: 'prices',    label: '💲 الأسعار',          show: () => can('perm_manage_prices') },
     { id: 'templates', label: '📝 قوالب التقارير',   show: () => can('perm_manage_templates') },
+    { id: 'lookups',   label: '📑 الفئات والطرق',    show: () => can('perm_view_finance') || can('perm_manage_settings') },
     { id: 'users',     label: '👥 المستخدمين',       show: () => can('perm_manage_users') },
     { id: 'app',       label: '🎨 إعدادات العيادة',  show: () => can('perm_manage_settings') },
     { id: 'backup',    label: '💾 النسخ الاحتياطي', show: () => can('perm_export_data') },
@@ -2126,6 +2145,7 @@ function renderSettings() {
     services: renderServicesSettings,
     prices: renderPricesSettings,
     templates: renderTemplatesSettings,
+    lookups: renderLookupsSettings,
     users: renderUsersSettings,
     app: renderAppSettings,
     backup: renderBackupSettings,
@@ -2513,6 +2533,81 @@ function addTplSection() {
   container.appendChild(div);
 }
 
+//----- Lookups (Expense Categories + Payment Methods) -----
+function renderLookupsSettings() {
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-slate-800">📑 فئات المصاريف (${appData.expense_categories.length})</h3>
+          <button onclick="addLookup('expense_categories')" class="btn btn-primary btn-sm">➕ إضافة</button>
+        </div>
+        ${appData.expense_categories.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد فئات. أضف الأولى لتظهر في فورم المصاريف.</p>` :
+        `<div class="space-y-2">${appData.expense_categories.map(c => `
+          <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+            <span class="font-semibold">${escapeHtml(c.name)}</span>
+            <div class="flex gap-1">
+              <button onclick="editLookup('expense_categories','${c.id}')" class="text-sky-600 hover:underline text-sm">✏️</button>
+              <button onclick="deleteLookup('expense_categories','${c.id}')" class="text-red-600 hover:underline text-sm">🗑️</button>
+            </div>
+          </div>`).join('')}</div>`}
+      </div>
+
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-slate-800">💳 طرق الدفع (${appData.payment_methods.length})</h3>
+          <button onclick="addLookup('payment_methods')" class="btn btn-primary btn-sm">➕ إضافة</button>
+        </div>
+        ${appData.payment_methods.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد طرق. أضف الأولى لتظهر في فورم المقبوضات.</p>` :
+        `<div class="space-y-2">${appData.payment_methods.map(m => `
+          <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+            <span class="font-semibold">${escapeHtml(m.name)}</span>
+            <div class="flex gap-1">
+              <button onclick="editLookup('payment_methods','${m.id}')" class="text-sky-600 hover:underline text-sm">✏️</button>
+              <button onclick="deleteLookup('payment_methods','${m.id}')" class="text-red-600 hover:underline text-sm">🗑️</button>
+            </div>
+          </div>`).join('')}</div>`}
+      </div>
+    </div>`;
+}
+
+function addLookup(table, existing = null) {
+  const labelMap = { expense_categories: 'فئة مصروف', payment_methods: 'طريقة دفع' };
+  const item = existing || { name: '', sort_order: (appData[table].length || 0) + 1 };
+  const body = `
+    <div class="space-y-3">
+      <div><label>الاسم *</label><input type="text" id="lk-name" value="${escapeHtml(item.name)}"></div>
+      <div><label>الترتيب</label><input type="number" id="lk-order" value="${item.sort_order || 0}"></div>
+    </div>`;
+  openModal(existing ? `تعديل ${labelMap[table]}` : `إضافة ${labelMap[table]}`, body, async () => {
+    const name = document.getElementById('lk-name').value.trim();
+    if (!name) { toast('الاسم مطلوب', 'error'); return false; }
+    const data = { name, sort_order: Number(document.getElementById('lk-order').value) || 0 };
+    const { error } = existing
+      ? await supa.from(table).update(data).eq('id', existing.id)
+      : await supa.from(table).insert(data);
+    if (error) { console.error('[lookup] error:', error); throw error; }
+    await reloadTable(table);
+    render();
+    toast(existing ? 'تم التحديث ✓' : 'تم الإضافة ✓');
+  });
+}
+
+function editLookup(table, id) {
+  const item = appData[table].find(x => x.id === id);
+  if (item) addLookup(table, item);
+}
+
+function deleteLookup(table, id) {
+  confirmAction('حذف هذا العنصر؟', async () => {
+    const { error } = await supa.from(table).delete().eq('id', id);
+    if (error) throw error;
+    await reloadTable(table);
+    render();
+    toast('تم الحذف ✓');
+  });
+}
+
 //----- Users -----
 function renderUsersSettings() {
   return `
@@ -2731,7 +2826,7 @@ function renderAppSettings() {
       <div class="card max-w-2xl">
         <h3 class="font-bold mb-3 text-slate-800">🎨 شاشة تسجيل الدخول</h3>
         <div class="space-y-3">
-          <div><label>عنوان الشاشة</label><input type="text" id="as-logintitle" value="${escapeHtml(s.login_title || 'برنامج إدارة طبيب الأشعة')}"></div>
+          <div><label>عنوان الشاشة</label><input type="text" id="as-logintitle" value="${escapeHtml(s.login_title || 'مدير حالات د. أحمد علي')}"></div>
           <div><label>سطر فرعي</label><input type="text" id="as-loginsub" value="${escapeHtml(s.login_subtitle || '')}"></div>
           <div>
             <label>صورة الخلفية</label>
@@ -2789,21 +2884,28 @@ async function saveLoginSettings() {
   toast('تم الحفظ ✓');
 }
 
+function buildPublicUrl(path) {
+  return `${SUPABASE_URL}/storage/v1/object/public/branding/${path}`;
+}
+
 async function uploadLoginBg(event) {
   const file = event.target.files[0];
   if (!file) return;
   showLoading(true);
   try {
-    const path = `login-bg-${Date.now()}.${file.name.split('.').pop()}`;
-    const { error: upErr } = await supa.storage.from('branding').upload(path, file, { upsert: true });
-    if (upErr) throw upErr;
-    const { data } = supa.storage.from('branding').getPublicUrl(path);
-    const { error } = await supa.from('app_settings').update({ login_bg_url: data.publicUrl }).eq('id', 1);
-    if (error) throw error;
-    appData.settings.login_bg_url = data.publicUrl;
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    const path = `login-bg-${Date.now()}.${ext}`;
+    console.log('[upload] uploading to:', path);
+    const { error: upErr } = await supa.storage.from('branding').upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) { console.error('[upload] storage error:', upErr); throw upErr; }
+    const publicUrl = buildPublicUrl(path);
+    console.log('[upload] public URL:', publicUrl);
+    const { error } = await supa.from('app_settings').update({ login_bg_url: publicUrl }).eq('id', 1);
+    if (error) { console.error('[upload] db error:', error); throw error; }
+    appData.settings.login_bg_url = publicUrl;
     render();
     toast('تم رفع الصورة ✓');
-  } catch (e) { toast('خطأ: ' + e.message, 'error'); }
+  } catch (e) { toast('خطأ: ' + (e.message || JSON.stringify(e)), 'error'); }
   finally { showLoading(false); event.target.value = ''; }
 }
 
@@ -2812,17 +2914,18 @@ async function uploadLetterhead(event, kind) {
   if (!file) return;
   showLoading(true);
   try {
-    const path = `letterhead-${kind}-${Date.now()}.${file.name.split('.').pop()}`;
-    const { error: upErr } = await supa.storage.from('branding').upload(path, file, { upsert: true });
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    const path = `letterhead-${kind}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supa.storage.from('branding').upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) throw upErr;
-    const { data } = supa.storage.from('branding').getPublicUrl(path);
+    const publicUrl = buildPublicUrl(path);
     const field = kind === 'header' ? 'letterhead_header_url' : 'letterhead_footer_url';
-    const { error } = await supa.from('app_settings').update({ [field]: data.publicUrl }).eq('id', 1);
+    const { error } = await supa.from('app_settings').update({ [field]: publicUrl }).eq('id', 1);
     if (error) throw error;
-    appData.settings[field] = data.publicUrl;
+    appData.settings[field] = publicUrl;
     render();
     toast('تم رفع الصورة ✓');
-  } catch (e) { toast('خطأ: ' + e.message, 'error'); }
+  } catch (e) { toast('خطأ: ' + (e.message || JSON.stringify(e)), 'error'); }
   finally { showLoading(false); event.target.value = ''; }
 }
 
