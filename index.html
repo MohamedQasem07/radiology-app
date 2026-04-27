@@ -165,6 +165,42 @@
     .report-edit .sec-content-edit { width: 100%; min-height: 80px; border: 1px dashed #94a3b8; padding: 8px; font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.6; direction: ltr; text-align: left; background: #fafafa; border-radius: 6px; }
     .report-edit .sec-heading-edit { width: 100%; font-weight: bold; font-style: italic; font-size: 15px; border: 1px dashed #cbd5e1; padding: 5px; margin-bottom: 4px; border-radius: 6px; }
 
+    /* Universal Search Overlay */
+    .usearch-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); backdrop-filter: blur(2px); z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; }
+    .usearch-box { width: 100%; max-width: 640px; background: white; border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.25); overflow: hidden; display: flex; flex-direction: column; max-height: 70vh; margin: 0 16px; }
+    .usearch-input-wrap { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
+    .usearch-input-wrap input { flex: 1; border: none; outline: none; font-size: 16px; padding: 4px 0; background: transparent; }
+    .usearch-results { flex: 1; overflow-y: auto; max-height: 50vh; }
+    .usearch-empty { padding: 32px 16px; text-align: center; color: #94a3b8; font-size: 13px; }
+    .usearch-group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 8px 16px 4px; background: #f8fafc; }
+    .usearch-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background .12s; }
+    .usearch-item:hover, .usearch-item.active { background: #ecfeff; }
+    .usearch-item-icon { font-size: 20px; flex-shrink: 0; }
+    .usearch-item-content { flex: 1; min-width: 0; }
+    .usearch-item-title { font-weight: 600; color: #0f172a; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .usearch-item-sub { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .usearch-footer { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; font-size: 11px; color: #64748b; }
+    .usearch-footer kbd { background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 5px; font-family: monospace; font-size: 10px; margin-left: 3px; }
+
+    /* Quick Actions FAB */
+    .fab-container { position: fixed; bottom: 20px; left: 20px; z-index: 80; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+    .fab-main { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,#0ea5e9,#0369a1); color: white; border: none; box-shadow: 0 6px 18px rgba(14,165,233,.4); font-size: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .2s, box-shadow .2s; }
+    .fab-main:hover { box-shadow: 0 8px 24px rgba(14,165,233,.55); transform: scale(1.05); }
+    .fab-main.open { transform: rotate(45deg); background: linear-gradient(135deg,#ef4444,#b91c1c); box-shadow: 0 6px 18px rgba(239,68,68,.4); }
+    .fab-menu { display: flex; flex-direction: column; gap: 8px; animation: fabSlideUp .18s ease-out; }
+    @keyframes fabSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fab-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 14px; background: white; border: 1px solid #e2e8f0; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.08); font-size: 14px; font-weight: 600; color: #1e293b; white-space: nowrap; transition: all .15s; }
+    .fab-item:hover { background: #f1f5f9; transform: translateX(-4px); }
+    .fab-emoji { font-size: 18px; }
+    @media print { .fab-container { display: none !important; } }
+
+    /* Voice dictation */
+    .voice-wrap { position: relative; }
+    .voice-btn { position: absolute; top: 6px; left: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: all .15s; }
+    .voice-btn:hover { background: #e2e8f0; }
+    .voice-btn.active { background: #ef4444; color: white; border-color: #dc2626; animation: voicePulse 1.2s ease-in-out infinite; }
+    @keyframes voicePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); } 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); } }
+
     /* Force hidden attribute to override flex/grid display */
     [hidden] { display: none !important; }
 
@@ -276,6 +312,10 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <button onclick="openUniversalSearch()" class="btn btn-secondary btn-sm hidden md:inline-flex items-center gap-2" title="بحث شامل (Ctrl+K)" style="font-size:13px;">
+              🔍 <span>بحث</span> <kbd style="background:#e2e8f0; padding:1px 6px; border-radius:4px; font-size:11px; font-family:monospace;">Ctrl K</kbd>
+            </button>
+            <button onclick="openUniversalSearch()" class="btn btn-secondary btn-sm md:hidden" title="بحث شامل" style="font-size:16px;">🔍</button>
             <div class="user-badge">
               <span class="user-avatar" id="user-avatar">؟</span>
               <span id="user-name">—</span>
@@ -289,10 +329,40 @@
       </div>
     </header>
     <main id="main-content" class="max-w-7xl mx-auto p-4"></main>
+
+    <!-- Quick Actions FAB -->
+    <div id="fab-container" class="fab-container no-print" hidden>
+      <div id="fab-menu" class="fab-menu" hidden>
+        <button class="fab-item" data-perm="perm_add_case" onclick="fabAction('newcase')"><span class="fab-emoji">➕</span><span>حالة جديدة</span></button>
+        <button class="fab-item" data-perm="perm_add_payment" onclick="fabAction('addPayment')"><span class="fab-emoji">💰</span><span>إضافة مقبوض</span></button>
+        <button class="fab-item" data-perm="perm_add_expense" onclick="fabAction('addExpense')"><span class="fab-emoji">📉</span><span>إضافة مصروف</span></button>
+      </div>
+      <button id="fab-main" class="fab-main" onclick="toggleFab()" aria-label="إجراءات سريعة">
+        <span id="fab-icon">＋</span>
+      </button>
+    </div>
   </div>
 
   <div id="modal-container"></div>
   <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div>
+
+  <!-- Universal Search Overlay -->
+  <div id="usearch-overlay" class="usearch-overlay" hidden onclick="if(event.target===this)closeUniversalSearch()">
+    <div class="usearch-box">
+      <div class="usearch-input-wrap">
+        <span style="font-size:18px;">🔍</span>
+        <input id="usearch-input" type="text" placeholder="ابحث في المرضى، العملاء، الخدمات، القوالب..." oninput="universalSearch(this.value)" onkeydown="universalSearchKey(event)">
+        <button onclick="closeUniversalSearch()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2">&times;</button>
+      </div>
+      <div id="usearch-results" class="usearch-results"></div>
+      <div class="usearch-footer">
+        <span><kbd>↑</kbd><kbd>↓</kbd> للتنقّل</span>
+        <span><kbd>Enter</kbd> للفتح</span>
+        <span><kbd>Esc</kbd> للإغلاق</span>
+      </div>
+    </div>
+  </div>
+
   <div id="install-banner" hidden>
     <span>📱 ثبّت البرنامج كتطبيق على شاشتك الرئيسية</span>
     <div>
@@ -571,7 +641,8 @@ let appData = {
   clients: [], services: [], prices: [],
   cases: [], payments: [], expenses: [],
   profiles: [], settings: {},
-  expense_categories: [], payment_methods: []
+  expense_categories: [], payment_methods: [],
+  whatsapp_templates: []
 };
 let ui = {
   currentTab: 'dashboard',
@@ -789,6 +860,677 @@ function lastActivityDate(clientId) {
 function daysSince(d) { if (!d) return null; const diff = Date.now() - new Date(d).getTime(); return Math.floor(diff / (1000*60*60*24)); }
 
 //==============================================================
+// WHATSAPP HELPERS
+//==============================================================
+function normalizePhone(phone) {
+  if (!phone) return '';
+  let p = String(phone).replace(/[^\d+]/g, '');
+  if (p.startsWith('+')) p = p.slice(1);
+  // Egyptian local numbers: 01xxxxxxxxx → 201xxxxxxxxx
+  if (/^01\d{9}$/.test(p)) p = '20' + p.slice(1);
+  // Already starts with country code
+  return p;
+}
+
+function applyTemplateVars(body, ctx) {
+  if (!body) return '';
+  const s = appData.settings || {};
+  const vars = {
+    client_name:   ctx.client_name   ?? '',
+    amount_due:    ctx.amount_due    ?? '',
+    days_overdue:  ctx.days_overdue  ?? '',
+    clinic_name:   ctx.clinic_name   ?? s.clinic_name   ?? '',
+    doctor_name:   ctx.doctor_name   ?? s.doctor_name   ?? '',
+    date:          ctx.date          ?? new Date().toLocaleDateString('ar-EG'),
+    patient_name:  ctx.patient_name  ?? '',
+    service_name:  ctx.service_name  ?? '',
+  };
+  return body.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+}
+
+function openWhatsAppLink(phone, text) {
+  const p = normalizePhone(phone);
+  if (!p) { toast('رقم الهاتف غير صحيح أو غير موجود', 'error'); return; }
+  window.open('https://wa.me/' + p + '?text=' + encodeURIComponent(text), '_blank');
+}
+
+// Picks a template for the given audience, fills variables, and opens WhatsApp.
+// ctx: { phone, client_name, amount_due, days_overdue, patient_name, service_name }
+function openWhatsAppPicker(audience, ctx) {
+  const templates = (appData.whatsapp_templates || []).filter(t => t.audience === audience && t.active !== false);
+  if (!ctx.phone) { toast('لا يوجد رقم هاتف مسجّل', 'error'); return; }
+  if (templates.length === 0) {
+    // No templates yet — open WA with a blank text
+    openWhatsAppLink(ctx.phone, '');
+    return;
+  }
+
+  const audienceLabel = audience === 'client' ? 'العميل' : 'المريض';
+  const previewId = 'wa-preview-' + Date.now();
+  const selectId  = 'wa-select-'  + Date.now();
+
+  const optionsHtml = templates.map((t, i) =>
+    `<option value="${t.id}" ${i === 0 ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
+  ).join('');
+
+  const firstFilled = applyTemplateVars(templates[0].body, ctx);
+
+  const body = `
+    <div class="space-y-3">
+      <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
+        <div><strong>إرسال إلى:</strong> ${escapeHtml(audienceLabel)} ${ctx.client_name ? '— ' + escapeHtml(ctx.client_name) : ''}${ctx.patient_name ? '— ' + escapeHtml(ctx.patient_name) : ''}</div>
+        <div class="text-slate-600 mt-1"><strong>رقم:</strong> ${escapeHtml(normalizePhone(ctx.phone))}</div>
+      </div>
+      <div>
+        <label>اختر قالب</label>
+        <select id="${selectId}" class="w-full">
+          ${optionsHtml}
+        </select>
+      </div>
+      <div>
+        <label>نص الرسالة (يمكن تعديله قبل الإرسال)</label>
+        <textarea id="${previewId}" rows="10" style="font-family:inherit; line-height:1.6;">${escapeHtml(firstFilled)}</textarea>
+      </div>
+      <div class="text-xs text-slate-500">
+        💡 المتغيرات تتحوّل تلقائياً: <code>{client_name}</code>, <code>{amount_due}</code>, <code>{days_overdue}</code>, <code>{clinic_name}</code>, <code>{doctor_name}</code>, <code>{date}</code>, <code>{patient_name}</code>, <code>{service_name}</code>
+      </div>
+    </div>`;
+
+  openModal('📲 إرسال واتساب', body, async () => {
+    const txt = document.getElementById(previewId).value || '';
+    openWhatsAppLink(ctx.phone, txt);
+    return true;
+  }, { saveLabel: '📲 فتح واتساب', saveClass: 'btn-success', width: '640px' });
+
+  // Wire up template selector to refresh the preview
+  setTimeout(() => {
+    const sel = document.getElementById(selectId);
+    const preview = document.getElementById(previewId);
+    if (sel && preview) {
+      sel.addEventListener('change', () => {
+        const t = templates.find(x => x.id === sel.value);
+        if (t) preview.value = applyTemplateVars(t.body, ctx);
+      });
+    }
+  }, 0);
+}
+
+// Open WhatsApp picker for a client (current dues auto-computed)
+function waToClient(clientId) {
+  const c = findClient(clientId);
+  if (!c) return;
+  if (!c.phone) { toast('لا يوجد رقم هاتف لهذا العميل', 'error'); return; }
+  const d = clientDue(clientId);
+  const last = lastActivityDate(clientId);
+  const days = last ? daysSince(last) : 0;
+  openWhatsAppPicker('client', {
+    phone: c.phone,
+    client_name: c.name,
+    amount_due: fmt(d.due),
+    days_overdue: days,
+  });
+}
+
+//==============================================================
+// MONTHLY SUMMARY BANNER
+//==============================================================
+// Shows on dashboard during month-end window (last 2 days of month
+// through the 5th of the next month) — gives the doctor a chance to see it.
+// Dismissable per-month via localStorage.
+function monthSummaryWindow() {
+  const now = new Date();
+  const day = now.getDate();
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  // Active in the last 2 days of the month, OR first 5 days of next month
+  if (day >= lastDayOfMonth - 1) {
+    // Reporting on the *current* month
+    return { y: now.getFullYear(), m: now.getMonth() };
+  } else if (day <= 5) {
+    // Reporting on the *previous* month
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return { y: prev.getFullYear(), m: prev.getMonth() };
+  }
+  return null;
+}
+
+function isMonthDismissed(y, m) {
+  try {
+    const k = `monthly_dismissed_${y}_${m}`;
+    return localStorage.getItem(k) === '1';
+  } catch (_) { return false; }
+}
+
+function dismissMonthBanner(y, m) {
+  try { localStorage.setItem(`monthly_dismissed_${y}_${m}`, '1'); } catch (_) {}
+  render();
+}
+
+function computeMonthSummary(y, m) {
+  const monthStart = new Date(y, m, 1);
+  const monthEnd = new Date(y, m + 1, 0, 23, 59, 59);
+  const startISO = monthStart.toISOString().slice(0, 10);
+  const endISO = monthEnd.toISOString().slice(0, 10);
+
+  const cases = (appData.cases || []).filter(c => (c.case_date || '') >= startISO && (c.case_date || '') <= endISO);
+  const payments = (appData.payments || []).filter(p => (p.payment_date || '') >= startISO && (p.payment_date || '') <= endISO);
+  const expenses = (appData.expenses || []).filter(x => (x.expense_date || '') >= startISO && (x.expense_date || '') <= endISO);
+
+  const casesTotal = cases.reduce((s, c) => s + caseAmount(c), 0);
+  const paid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const exp = expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+  // Cases-by-client breakdown
+  const byClient = {};
+  cases.forEach(c => {
+    const cid = c.client_id || 'cash';
+    if (!byClient[cid]) byClient[cid] = { count: 0, amount: 0 };
+    byClient[cid].count++;
+    byClient[cid].amount += caseAmount(c);
+  });
+  const topClients = Object.entries(byClient)
+    .map(([cid, v]) => ({
+      name: cid === 'cash' ? '💵 كاش مباشر' : (findClient(cid)?.name || '?'),
+      ...v,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5);
+
+  // Cases-by-service breakdown
+  const byService = {};
+  cases.forEach(c => {
+    const sid = c.service_id || 'unknown';
+    if (!byService[sid]) byService[sid] = { count: 0, amount: 0 };
+    byService[sid].count++;
+    byService[sid].amount += caseAmount(c);
+  });
+  const topServices = Object.entries(byService)
+    .map(([sid, v]) => ({
+      name: findService(sid)?.name || '(غير محدد)',
+      ...v,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5);
+
+  return { y, m, startISO, endISO, casesCount: cases.length, casesTotal, paid, expenses: exp, topClients, topServices };
+}
+
+function buildMonthlyBanner() {
+  if (!can('perm_view_dashboard')) return '';
+  const win = monthSummaryWindow();
+  if (!win) return '';
+  if (isMonthDismissed(win.y, win.m)) return '';
+
+  const monthName = new Date(win.y, win.m, 1).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
+  const sum = computeMonthSummary(win.y, win.m);
+  if (sum.casesCount === 0) return ''; // Nothing to show
+
+  return `
+    <div class="card no-print" style="border-right:4px solid #8b5cf6; background:linear-gradient(135deg,#faf5ff,#f5f3ff);">
+      <div class="flex items-start gap-3 flex-wrap">
+        <span style="font-size:28px;">📊</span>
+        <div class="flex-1" style="min-width:200px;">
+          <div class="font-bold text-purple-900 mb-1">ملخص شهر ${escapeHtml(monthName)}</div>
+          <div class="text-sm text-slate-700 grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+            <div><strong>${fmtNum(sum.casesCount)}</strong> حالة</div>
+            ${can('perm_view_finance') ? `
+              <div><strong class="text-emerald-700">${fmt(sum.casesTotal)}</strong> إيرادات</div>
+              <div><strong class="text-sky-700">${fmt(sum.paid)}</strong> محصّل</div>
+              <div><strong class="text-red-700">${fmt(sum.expenses)}</strong> مصاريف</div>
+            ` : ''}
+          </div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="printMonthSummary(${sum.y}, ${sum.m})" class="btn btn-primary btn-sm">🖨️ طباعة التقرير</button>
+          <button onclick="dismissMonthBanner(${sum.y}, ${sum.m})" class="btn btn-secondary btn-sm">إخفاء</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function printMonthSummary(y, m) {
+  const sum = computeMonthSummary(y, m);
+  const monthName = new Date(y, m, 1).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
+  const s = appData.settings || {};
+  const net = sum.paid - sum.expenses;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('السماح بالنوافذ المنبثقة مطلوب', 'error'); return; }
+
+  const topClientsHtml = sum.topClients.map(c =>
+    `<tr><td>${escapeHtml(c.name)}</td><td style="text-align:center;">${c.count}</td><td style="text-align:left;">${fmt(c.amount)}</td></tr>`
+  ).join('');
+  const topServicesHtml = sum.topServices.map(sv =>
+    `<tr><td>${escapeHtml(sv.name)}</td><td style="text-align:center;">${sv.count}</td><td style="text-align:left;">${fmt(sv.amount)}</td></tr>`
+  ).join('');
+
+  w.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>ملخص شهري — ${escapeHtml(monthName)}</title>
+  <style>
+    @page { size: A4; margin: 1.5cm; }
+    body { font-family: 'Segoe UI', 'Cairo', sans-serif; color: #1e293b; padding: 20px; }
+    h1 { color: #6d28d9; margin: 0 0 4px 0; }
+    h2 { color: #475569; font-size: 16px; margin: 24px 0 8px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; }
+    .header { text-align: center; padding-bottom: 16px; border-bottom: 3px solid #8b5cf6; margin-bottom: 20px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+    .kpi { padding: 14px; border-radius: 8px; background: #faf5ff; border-right: 4px solid #8b5cf6; }
+    .kpi .label { font-size: 11px; color: #64748b; }
+    .kpi .value { font-size: 20px; font-weight: bold; color: #1e293b; margin-top: 4px; }
+    .kpi.green { background: #ecfdf5; border-right-color: #10b981; }
+    .kpi.red { background: #fef2f2; border-right-color: #ef4444; }
+    .kpi.blue { background: #eff6ff; border-right-color: #0ea5e9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; }
+    th { background: #f1f5f9; font-weight: 600; text-align: right; }
+    .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 11px; }
+    .net { padding: 12px; border-radius: 8px; background: ${net >= 0 ? '#ecfdf5' : '#fef2f2'}; border: 1px solid ${net >= 0 ? '#a7f3d0' : '#fecaca'}; margin-top: 16px; text-align: center; }
+    .net .v { font-size: 22px; font-weight: bold; color: ${net >= 0 ? '#047857' : '#b91c1c'}; }
+    @media print { body { padding: 0; } button { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 ملخّص شهري</h1>
+    <div style="font-size:18px; color:#475569;">${escapeHtml(monthName)}</div>
+    ${s.clinic_name ? `<div style="margin-top:8px; color:#475569;">${escapeHtml(s.clinic_name)}</div>` : ''}
+    ${s.doctor_name ? `<div style="font-size:13px; color:#64748b;">${escapeHtml(s.doctor_name)}</div>` : ''}
+  </div>
+
+  <div class="kpis">
+    <div class="kpi blue"><div class="label">عدد الحالات</div><div class="value">${fmtNum(sum.casesCount)}</div></div>
+    <div class="kpi green"><div class="label">إجمالي الإيرادات</div><div class="value">${fmt(sum.casesTotal)}</div></div>
+    <div class="kpi"><div class="label">المحصّل</div><div class="value">${fmt(sum.paid)}</div></div>
+    <div class="kpi red"><div class="label">المصاريف</div><div class="value">${fmt(sum.expenses)}</div></div>
+  </div>
+
+  <div class="net">
+    <div style="font-size:12px; color:#475569;">صافي الشهر (المحصّل − المصاريف)</div>
+    <div class="v">${fmt(net)} ج.م</div>
+  </div>
+
+  <h2>🏥 أعلى العملاء</h2>
+  ${sum.topClients.length === 0 ? '<p style="color:#94a3b8;">لا توجد بيانات</p>' : `
+    <table>
+      <thead><tr><th>العميل</th><th style="text-align:center;">عدد الحالات</th><th style="text-align:left;">القيمة</th></tr></thead>
+      <tbody>${topClientsHtml}</tbody>
+    </table>`}
+
+  <h2>🩻 أعلى الخدمات</h2>
+  ${sum.topServices.length === 0 ? '<p style="color:#94a3b8;">لا توجد بيانات</p>' : `
+    <table>
+      <thead><tr><th>الخدمة</th><th style="text-align:center;">عدد الحالات</th><th style="text-align:left;">القيمة</th></tr></thead>
+      <tbody>${topServicesHtml}</tbody>
+    </table>`}
+
+  <div class="footer">
+    تم إنشاء التقرير في ${new Date().toLocaleString('ar-EG')}
+  </div>
+
+  <div style="text-align:center; margin-top:20px;" class="no-print">
+    <button onclick="window.print()" style="padding:10px 20px; background:#8b5cf6; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px;">🖨️ طباعة</button>
+    <button onclick="window.close()" style="padding:10px 20px; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; margin-right:8px;">إغلاق</button>
+  </div>
+</body></html>`);
+  w.document.close();
+  setTimeout(() => { try { w.focus(); } catch (_) {} }, 100);
+}
+
+//==============================================================
+// UNIVERSAL SEARCH (Cmd+K / Ctrl+K)
+//==============================================================
+let _usearchResults = [];
+let _usearchActiveIdx = 0;
+
+function openUniversalSearch() {
+  if (!profile) return;
+  const overlay = document.getElementById('usearch-overlay');
+  if (!overlay) return;
+  overlay.hidden = false;
+  const input = document.getElementById('usearch-input');
+  setTimeout(() => { input.value = ''; input.focus(); universalSearch(''); }, 50);
+}
+
+function closeUniversalSearch() {
+  const overlay = document.getElementById('usearch-overlay');
+  if (overlay) overlay.hidden = true;
+  _usearchResults = [];
+  _usearchActiveIdx = 0;
+}
+
+function universalSearch(q) {
+  q = (q || '').trim().toLowerCase();
+  const out = document.getElementById('usearch-results');
+  if (!out) return;
+  if (!q) {
+    // Show recent items if no query
+    const recentCases = (appData.cases || []).slice(0, 5);
+    const sections = [];
+    if (recentCases.length) {
+      sections.push({ title: 'حالات حديثة', items: recentCases.map(c => caseToResult(c)) });
+    }
+    _usearchResults = sections.flatMap(s => s.items);
+    out.innerHTML = renderUsearchSections(sections);
+    _usearchActiveIdx = 0;
+    highlightUsearchActive();
+    return;
+  }
+
+  // Search across entities
+  const cases = (appData.cases || []).filter(c =>
+    (c.patient_name || '').toLowerCase().includes(q) ||
+    (c.nationality || '').toLowerCase().includes(q) ||
+    (c.notes || '').toLowerCase().includes(q) ||
+    (c.patient_phone || '').includes(q)
+  ).slice(0, 8);
+
+  const clients = (appData.clients || []).filter(h =>
+    (h.name || '').toLowerCase().includes(q) ||
+    (h.phone || '').includes(q) ||
+    (h.contact_person || '').toLowerCase().includes(q)
+  ).slice(0, 6);
+
+  const services = (appData.services || []).filter(s =>
+    (s.name || '').toLowerCase().includes(q) ||
+    (s.name_en || '').toLowerCase().includes(q) ||
+    (s.code || '').toLowerCase().includes(q)
+  ).slice(0, 6);
+
+  const sections = [];
+  if (cases.length)    sections.push({ title: `🩻 حالات (${cases.length})`,  items: cases.map(caseToResult) });
+  if (clients.length)  sections.push({ title: `🏥 عملاء (${clients.length})`, items: clients.map(clientToResult) });
+  if (services.length) sections.push({ title: `📋 خدمات (${services.length})`, items: services.map(serviceToResult) });
+
+  _usearchResults = sections.flatMap(s => s.items);
+  _usearchActiveIdx = 0;
+
+  if (_usearchResults.length === 0) {
+    out.innerHTML = `<div class="usearch-empty">لا توجد نتائج لـ "${escapeHtml(q)}"</div>`;
+    return;
+  }
+
+  out.innerHTML = renderUsearchSections(sections);
+  highlightUsearchActive();
+}
+
+function renderUsearchSections(sections) {
+  let globalIdx = 0;
+  return sections.map(sec => {
+    const items = sec.items.map(it => {
+      const idx = globalIdx++;
+      return `<div class="usearch-item" data-idx="${idx}" onclick="usearchOpen(${idx})" onmouseenter="_usearchActiveIdx=${idx}; highlightUsearchActive();">
+        <span class="usearch-item-icon">${it.icon}</span>
+        <div class="usearch-item-content">
+          <div class="usearch-item-title">${escapeHtml(it.title)}</div>
+          <div class="usearch-item-sub">${escapeHtml(it.sub || '')}</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="usearch-group-title">${sec.title}</div>${items}`;
+  }).join('');
+}
+
+function highlightUsearchActive() {
+  document.querySelectorAll('.usearch-item').forEach(el => {
+    el.classList.toggle('active', Number(el.dataset.idx) === _usearchActiveIdx);
+  });
+  const active = document.querySelector('.usearch-item.active');
+  if (active) active.scrollIntoView({ block: 'nearest' });
+}
+
+function caseToResult(c) {
+  const cl = findClient(c.client_id);
+  const sv = findService(c.service_id);
+  return {
+    icon: c.report ? '📄' : '🩻',
+    title: c.patient_name || '(بدون اسم)',
+    sub: `${fmtDate(c.case_date) || ''} · ${cl?.name || '?'} · ${sv?.name || '?'}`,
+    type: 'case',
+    id: c.id,
+  };
+}
+function clientToResult(h) {
+  return {
+    icon: '🏥',
+    title: h.name,
+    sub: `${clientTypeLabel(h.type)}${h.phone ? ' · ' + h.phone : ''}`,
+    type: 'client',
+    id: h.id,
+  };
+}
+function serviceToResult(s) {
+  return {
+    icon: '📋',
+    title: s.name,
+    sub: s.name_en || s.code || '',
+    type: 'service',
+    id: s.id,
+  };
+}
+
+function usearchOpen(idx) {
+  const it = _usearchResults[idx];
+  if (!it) return;
+  closeUniversalSearch();
+  if (it.type === 'case') {
+    // Filter cases tab to show this case (or open report chooser if it has a report)
+    if (can('perm_view_cases')) {
+      ui.casesFilter = { client: '', from: '', to: '', search: it.title, cashOnly: '', ptype: '' };
+      switchTab('cases');
+    }
+  } else if (it.type === 'client') {
+    if (can('perm_view_finance') || can('perm_manage_clients')) {
+      switchTab('clients');
+    } else {
+      switchTab('settings');
+      ui.settingsTab = 'clients';
+      render();
+    }
+  } else if (it.type === 'service') {
+    switchTab('settings');
+    ui.settingsTab = 'services';
+    render();
+  }
+}
+
+function universalSearchKey(e) {
+  if (e.key === 'Escape') { closeUniversalSearch(); return; }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (_usearchResults.length === 0) return;
+    _usearchActiveIdx = (_usearchActiveIdx + 1) % _usearchResults.length;
+    highlightUsearchActive();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (_usearchResults.length === 0) return;
+    _usearchActiveIdx = (_usearchActiveIdx - 1 + _usearchResults.length) % _usearchResults.length;
+    highlightUsearchActive();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    usearchOpen(_usearchActiveIdx);
+  }
+}
+
+// Global Ctrl+K / Cmd+K binding
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    if (!profile) return;
+    e.preventDefault();
+    openUniversalSearch();
+  }
+});
+
+//==============================================================
+// QUICK ACTIONS FAB
+//==============================================================
+function refreshFab() {
+  const cont = document.getElementById('fab-container');
+  if (!cont) return;
+  if (!profile || isClientPortal()) { cont.hidden = true; return; }
+  const items = cont.querySelectorAll('.fab-item');
+  let visibleCount = 0;
+  items.forEach(it => {
+    const perm = it.getAttribute('data-perm');
+    const ok = !perm || can(perm);
+    it.style.display = ok ? '' : 'none';
+    if (ok) visibleCount++;
+  });
+  cont.hidden = visibleCount === 0;
+}
+
+function toggleFab() {
+  const menu = document.getElementById('fab-menu');
+  const main = document.getElementById('fab-main');
+  const icon = document.getElementById('fab-icon');
+  if (!menu) return;
+  const open = !menu.hidden;
+  menu.hidden = open;
+  if (open) {
+    main.classList.remove('open');
+    icon.textContent = '＋';
+  } else {
+    main.classList.add('open');
+    icon.textContent = '×';
+  }
+}
+
+function fabAction(action) {
+  // Close menu first
+  const menu = document.getElementById('fab-menu');
+  const main = document.getElementById('fab-main');
+  const icon = document.getElementById('fab-icon');
+  if (menu) menu.hidden = true;
+  if (main) main.classList.remove('open');
+  if (icon) icon.textContent = '＋';
+
+  if (action === 'newcase') switchTab('newcase');
+  else if (action === 'addPayment') {
+    if (typeof addPayment === 'function') addPayment();
+  } else if (action === 'addExpense') {
+    if (typeof addExpense === 'function') addExpense();
+  }
+}
+
+// Close FAB menu if user clicks outside
+document.addEventListener('click', (e) => {
+  const cont = document.getElementById('fab-container');
+  const menu = document.getElementById('fab-menu');
+  if (!cont || !menu || menu.hidden) return;
+  if (!cont.contains(e.target)) {
+    menu.hidden = true;
+    const main = document.getElementById('fab-main');
+    const icon = document.getElementById('fab-icon');
+    if (main) main.classList.remove('open');
+    if (icon) icon.textContent = '＋';
+  }
+});
+
+//==============================================================
+// VOICE DICTATION (Web Speech API — Chrome/Edge/Safari)
+//==============================================================
+let _activeRecognition = null;
+
+function voiceDictate(targetEl, btnEl) {
+  if (!targetEl) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    toast('متصفحك لا يدعم الإملاء الصوتي. استخدم Chrome / Edge / Safari', 'warn');
+    return;
+  }
+  // If already recording, stop it
+  if (_activeRecognition) {
+    try { _activeRecognition.stop(); } catch (_) {}
+    _activeRecognition = null;
+    document.querySelectorAll('.voice-btn.active').forEach(b => { b.classList.remove('active'); b.textContent = '🎤'; });
+    return;
+  }
+
+  const rec = new SR();
+  // Default to Arabic Egyptian, with fallback recognition for English medical terms
+  rec.lang = (targetEl.dataset.voiceLang) || 'ar-EG';
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  let finalText = targetEl.value || '';
+  if (finalText && !finalText.endsWith(' ') && !finalText.endsWith('\n')) finalText += ' ';
+  let interim = '';
+
+  rec.onresult = (e) => {
+    interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) finalText += r[0].transcript + ' ';
+      else interim += r[0].transcript;
+    }
+    targetEl.value = finalText + interim;
+    // Auto-grow textareas
+    if (targetEl.tagName === 'TEXTAREA') {
+      targetEl.scrollTop = targetEl.scrollHeight;
+    }
+  };
+
+  rec.onerror = (e) => {
+    console.warn('[voice] error:', e.error);
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      toast('السماح بالميكروفون مطلوب', 'error');
+    } else if (e.error !== 'aborted' && e.error !== 'no-speech') {
+      toast('خطأ في الإملاء: ' + e.error, 'error');
+    }
+  };
+
+  rec.onend = () => {
+    _activeRecognition = null;
+    if (btnEl) { btnEl.classList.remove('active'); btnEl.textContent = '🎤'; }
+    document.querySelectorAll('.voice-btn.active').forEach(b => { b.classList.remove('active'); b.textContent = '🎤'; });
+    targetEl.value = finalText.trim();
+  };
+
+  try {
+    rec.start();
+    _activeRecognition = rec;
+    if (btnEl) { btnEl.classList.add('active'); btnEl.textContent = '⏹'; }
+    targetEl.focus();
+  } catch (e) {
+    toast('فشل بدء الإملاء: ' + e.message, 'error');
+  }
+}
+
+// Generate a voice-enabled wrapper around a textarea (used in report editor)
+function voiceWrap(textareaHtml, lang = 'ar-EG') {
+  // Inject data-voice-lang into the textarea tag
+  const enhanced = textareaHtml.replace(/<textarea/, `<textarea data-voice-lang="${lang}"`);
+  return `<div class="voice-wrap">${enhanced}<button type="button" class="voice-btn" title="إملاء صوتي (اضغط للبدء/الإيقاف)" onclick="voiceDictate(this.parentElement.querySelector('textarea'), this)">🎤</button></div>`;
+}
+
+// WhatsApp to a patient for a specific case (uses patient audience templates)
+function waToPatientCase(caseId) {
+  const c = appData.cases.find(x => x.id === caseId);
+  if (!c) return;
+  if (!c.patient_phone) { toast('لا يوجد رقم هاتف لهذا المريض', 'error'); return; }
+  const svc = findService(c.service_id);
+  openWhatsAppPicker('patient', {
+    phone: c.patient_phone,
+    patient_name: c.patient_name,
+    service_name: svc?.name || '',
+    date: c.case_date ? fmtDate(c.case_date) : new Date().toLocaleDateString('ar-EG'),
+  });
+}
+
+// Quick reminder used by overdue alerts on the dashboard
+function waOverdueClient(clientId, due, days) {
+  const c = findClient(clientId);
+  if (!c) return;
+  if (!c.phone) { toast('لا يوجد رقم هاتف لهذا العميل', 'error'); return; }
+  openWhatsAppPicker('client', {
+    phone: c.phone,
+    client_name: c.name,
+    amount_due: fmt(due),
+    days_overdue: days,
+  });
+}
+
+//==============================================================
 // TOAST + MODAL
 //==============================================================
 function toast(msg, type = 'success') {
@@ -952,7 +1694,7 @@ async function handleLogin(e) {
 async function handleLogout() {
   await supa.auth.signOut();
   session = null; profile = null;
-  appData = { clients:[], services:[], prices:[], cases:[], payments:[], expenses:[], profiles:[], settings:{} };
+  appData = { clients:[], services:[], prices:[], cases:[], payments:[], expenses:[], profiles:[], settings:{}, whatsapp_templates:[] };
   showLoginScreen();
 }
 
@@ -978,7 +1720,7 @@ async function showResetPassword(e) {
 async function loadAllData() {
   showLoading(true);
   try {
-    const [clients, services, prices, settings, cases, payments, expenses, profiles, expenseCats, paymentMethods] = await Promise.all([
+    const [clients, services, prices, settings, cases, payments, expenses, profiles, expenseCats, paymentMethods, waTemplates] = await Promise.all([
       supa.from('clients').select('*').order('name'),
       supa.from('services').select('*').order('sort_order').order('name'),
       supa.from('prices').select('*'),
@@ -989,6 +1731,7 @@ async function loadAllData() {
       supa.from('profiles').select('*').order('full_name'),
       supa.from('expense_categories').select('*').eq('active', true).order('sort_order').order('name'),
       supa.from('payment_methods').select('*').eq('active', true).order('sort_order').order('name'),
+      supa.from('whatsapp_templates').select('*').eq('active', true).order('sort_order').order('name'),
     ]);
     appData.clients = clients.data || [];
     appData.services = services.data || [];
@@ -1000,6 +1743,7 @@ async function loadAllData() {
     appData.profiles = profiles.data || [];
     appData.expense_categories = expenseCats.data || [];
     appData.payment_methods = paymentMethods.data || [];
+    appData.whatsapp_templates = waTemplates.data || [];
   } catch (e) {
     console.error(e);
     toast('خطأ في تحميل البيانات: ' + e.message, 'error');
@@ -1009,8 +1753,8 @@ async function loadAllData() {
 }
 
 async function reloadTable(table) {
-  const orderBy = { cases: 'case_date', payments: 'payment_date', expenses: 'expense_date', services: 'sort_order', clients: 'name', profiles: 'full_name', prices: 'id', expense_categories: 'sort_order', payment_methods: 'sort_order' }[table];
-  const ascending = ['services','clients','profiles','prices','expense_categories','payment_methods'].includes(table);
+  const orderBy = { cases: 'case_date', payments: 'payment_date', expenses: 'expense_date', services: 'sort_order', clients: 'name', profiles: 'full_name', prices: 'id', expense_categories: 'sort_order', payment_methods: 'sort_order', whatsapp_templates: 'sort_order' }[table];
+  const ascending = ['services','clients','profiles','prices','expense_categories','payment_methods','whatsapp_templates'].includes(table);
   const { data } = await supa.from(table).select('*').order(orderBy, { ascending });
   appData[table] = data || [];
 }
@@ -1121,6 +1865,7 @@ function render() {
 
     if (ui.currentTab === 'dashboard') setTimeout(renderDashboardCharts, 50);
     if (ui.currentTab === 'clients') setTimeout(renderClientsCharts, 50);
+    refreshFab();
   } catch (e) {
     console.error('[render] FATAL in tab', ui.currentTab, ':', e);
     const main = document.getElementById('main-content');
@@ -1191,8 +1936,11 @@ function renderDashboard() {
   const recentCases = [...appData.cases].sort((a, b) => (b.case_date || '').localeCompare(a.case_date || '')).slice(0, 8);
   const overdueClients = dues.filter(d => d.daysOverdue && d.daysOverdue > 30 && d.due > 0);
 
+  const monthlyBanner = buildMonthlyBanner();
+
   return `
     <div class="space-y-5">
+      ${monthlyBanner}
       <!-- Filters -->
       <div class="card no-print">
         <div class="flex flex-wrap items-end gap-3">
@@ -1228,8 +1976,8 @@ function renderDashboard() {
             <div class="flex-1">
               <div class="font-bold text-amber-800 mb-1">عملاء عليهم متأخرات أكثر من 30 يوم (${overdueClients.length})</div>
               <div class="text-sm text-slate-700 space-y-1">
-                ${overdueClients.slice(0, 3).map(d => `<div>• <strong>${escapeHtml(d.client.name)}</strong> — ${fmt(d.due)} (آخر تعامل من ${d.daysOverdue} يوم)</div>`).join('')}
-                ${overdueClients.length > 3 ? `<div class="text-amber-700">+ ${overdueClients.length - 3} غيرهم...</div>` : ''}
+                ${overdueClients.slice(0, 5).map(d => `<div class="flex items-center justify-between gap-2"><div>• <strong>${escapeHtml(d.client.name)}</strong> — ${fmt(d.due)} (آخر تعامل من ${d.daysOverdue} يوم)</div>${d.client.phone ? `<button onclick="waOverdueClient('${d.client.id}', ${d.due}, ${d.daysOverdue})" class="text-emerald-700 hover:bg-emerald-100 px-2 py-1 rounded text-xs whitespace-nowrap" title="ذكّر العميل بالواتساب">📲 ذكّر</button>` : '<span class="text-xs text-slate-400">لا يوجد رقم</span>'}</div>`).join('')}
+                ${overdueClients.length > 5 ? `<div class="text-amber-700">+ ${overdueClients.length - 5} غيرهم...</div>` : ''}
               </div>
             </div>
           </div>
@@ -1426,9 +2174,10 @@ function renderNewCase() {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><label>اسم المريض *</label><input type="text" id="nc-patient" list="patients-datalist" required placeholder="Ahmed Mohamed"></div>
           <div><label>تاريخ الميلاد</label><input type="date" id="nc-dob"></div>
+          <div><label>تليفون المريض</label><input type="tel" id="nc-phone" placeholder="01xxxxxxxxx" dir="ltr"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1493,6 +2242,7 @@ async function saveNewCase(e) {
       date_of_birth: document.getElementById('nc-dob').value || null,
       nationality: document.getElementById('nc-nationality').value.trim() || null,
       patient_type: document.getElementById('nc-type').value,
+      patient_phone: document.getElementById('nc-phone').value.trim() || null,
       price: Number(document.getElementById('nc-price').value) || 0,
       cash_direct: cashDirect,
       notes: document.getElementById('nc-notes').value.trim() || null,
@@ -1589,7 +2339,8 @@ function renderCases() {
                     `<button onclick="openReportChooser('${c.id}')" class="text-xl hover:scale-110 transition" title="${c.report ? 'تقرير موجود' : 'إنشاء تقرير'}">${c.report ? '📄✓' : '📄'}</button>` : '—'}
                 </td>
                 <td class="whitespace-nowrap">
-                  ${can('perm_edit_case') ? `<button onclick="editCase('${c.id}')" class="text-sky-600 hover:underline text-sm">تعديل</button>` : ''}
+                  ${c.patient_phone ? `<button onclick="waToPatientCase('${c.id}')" class="text-emerald-600 hover:underline text-sm" title="واتساب للمريض">📲</button>` : ''}
+                  ${can('perm_edit_case') ? `<button onclick="editCase('${c.id}')" class="text-sky-600 hover:underline text-sm mr-2">تعديل</button>` : ''}
                   ${can('perm_delete_case') ? `<button onclick="deleteCase('${c.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>` : ''}
                 </td>
               </tr>`).join('')}
@@ -1609,7 +2360,10 @@ function editCase(id) {
         <div><label>التاريخ</label><input type="date" id="ec-date" value="${c.case_date || ''}"></div>
         <div><label>تاريخ الميلاد</label><input type="date" id="ec-dob" value="${c.date_of_birth || ''}"></div>
       </div>
-      <div><label>اسم المريض</label><input type="text" id="ec-patient" list="patients-datalist" value="${escapeHtml(c.patient_name || '')}"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label>اسم المريض</label><input type="text" id="ec-patient" list="patients-datalist" value="${escapeHtml(c.patient_name || '')}"></div>
+        <div><label>تليفون المريض</label><input type="tel" id="ec-phone" value="${escapeHtml(c.patient_phone || '')}" placeholder="01xxxxxxxxx" dir="ltr"></div>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label>الجنسية</label><input type="text" id="ec-nat" list="nationalities-datalist" value="${escapeHtml(c.nationality || '')}"></div>
         <div><label>نوع المريض</label>
@@ -1640,6 +2394,7 @@ function editCase(id) {
       case_date: document.getElementById('ec-date').value,
       date_of_birth: document.getElementById('ec-dob').value || null,
       patient_name: document.getElementById('ec-patient').value.trim(),
+      patient_phone: document.getElementById('ec-phone').value.trim() || null,
       nationality: document.getElementById('ec-nat').value.trim() || null,
       patient_type: document.getElementById('ec-type').value,
       client_id: document.getElementById('ec-client').value || null,
@@ -1736,25 +2491,39 @@ function writeReport(caseId, source) {
     report = { title: '', sections: [], conclusion: '' };
   }
 
-  const sectionsHtml = (report.sections || []).map((sec, i) => `
-    <div class="mb-3" data-idx="${i}">
-      <input type="text" class="sec-heading-edit" data-field="heading" value="${escapeHtml(sec.heading)}">
-      <textarea class="sec-content-edit" data-field="content" rows="5">${escapeHtml(sec.content)}</textarea>
-    </div>`).join('');
-
   const canEdit = can('perm_write_report') || can('perm_edit_report');
   const readOnly = !canEdit;
 
+  const sectionsHtml = (report.sections || []).map((sec, i) => {
+    const ta = `<textarea class="sec-content-edit" data-field="content" rows="5"${readOnly ? ' readonly' : ''}>${escapeHtml(sec.content)}</textarea>`;
+    return `
+    <div class="mb-3" data-idx="${i}">
+      <input type="text" class="sec-heading-edit" data-field="heading" value="${escapeHtml(sec.heading)}"${readOnly ? ' readonly' : ''}>
+      ${canEdit ? voiceWrap(ta, 'ar-EG') : ta}
+    </div>`;
+  }).join('');
+
+  const conclusionTa = `<textarea id="rpt-conclusion" rows="4" style="direction:ltr; text-align:left; font-family:'Times New Roman',serif"${readOnly ? ' readonly' : ''}>${escapeHtml(report.conclusion || '')}</textarea>`;
+
+  // Past reports for the same patient (excluding the current case)
+  const pastReports = (appData.cases || []).filter(x =>
+    x.id !== c.id &&
+    (x.patient_name || '').trim().toLowerCase() === (c.patient_name || '').trim().toLowerCase() &&
+    !!x.report
+  ).sort((a,b) => (b.case_date || '').localeCompare(a.case_date || ''));
+
   const body = `
     <div class="space-y-3">
-      <div class="bg-sky-50 p-3 rounded-lg text-sm border border-sky-200">
-        <strong>المريض:</strong> ${escapeHtml(c.patient_name)} | <strong>العميل:</strong> ${escapeHtml(h?.name || '?')}
+      <div class="bg-sky-50 p-3 rounded-lg text-sm border border-sky-200 flex items-center justify-between gap-2 flex-wrap">
+        <div><strong>المريض:</strong> ${escapeHtml(c.patient_name)} | <strong>العميل:</strong> ${escapeHtml(h?.name || '?')}</div>
+        ${pastReports.length > 0 ? `<button type="button" onclick="showPastReports('${c.id}')" class="text-sky-700 hover:bg-sky-100 px-2 py-1 rounded text-xs font-semibold whitespace-nowrap">📚 تقارير سابقة (${pastReports.length})</button>` : ''}
       </div>
+      ${canEdit ? `<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800">🎤 اضغط الميكروفون للإملاء الصوتي. اضغط مرة تانية للإيقاف. (يدعم Chrome / Edge / Safari)</div>` : ''}
       <div class="report-edit">
         <div class="mb-3"><label>عنوان التقرير</label><input type="text" id="rpt-title" value="${escapeHtml(report.title || '')}" style="direction:ltr; text-align:left; font-weight:bold; font-size:15px" ${readOnly ? 'readonly' : ''}></div>
         <div id="rpt-sections">${sectionsHtml}</div>
         ${canEdit ? `<button type="button" onclick="addReportSection()" class="btn btn-secondary mb-3">➕ إضافة قسم</button>` : ''}
-        <div><label>CONCLUSION</label><textarea id="rpt-conclusion" rows="4" style="direction:ltr; text-align:left; font-family:'Times New Roman',serif" ${readOnly ? 'readonly' : ''}>${escapeHtml(report.conclusion || '')}</textarea></div>
+        <div><label>CONCLUSION</label>${canEdit ? voiceWrap(conclusionTa, 'ar-EG') : conclusionTa}</div>
       </div>
       <div class="flex gap-2 justify-end pt-3 border-t border-slate-200">
         <button type="button" onclick="printReport('${caseId}', ${canEdit})" class="btn btn-primary">🖨️ ${canEdit ? 'حفظ و' : ''}طباعة / PDF</button>
@@ -1769,6 +2538,61 @@ function writeReport(caseId, source) {
     render();
     toast('تم حفظ التقرير ✓');
   } : null, { saveLabel: '💾 حفظ', width: '880px' });
+}
+
+function showPastReports(currentCaseId) {
+  const c = appData.cases.find(x => x.id === currentCaseId);
+  if (!c) return;
+  const past = (appData.cases || []).filter(x =>
+    x.id !== c.id &&
+    (x.patient_name || '').trim().toLowerCase() === (c.patient_name || '').trim().toLowerCase() &&
+    !!x.report
+  ).sort((a,b) => (b.case_date || '').localeCompare(a.case_date || ''));
+
+  if (past.length === 0) { toast('لا توجد تقارير سابقة', 'info'); return; }
+
+  const body = `
+    <div class="space-y-2">
+      <p class="text-sm text-slate-600 mb-3">📚 تقارير سابقة لـ <strong>${escapeHtml(c.patient_name)}</strong></p>
+      ${past.map(p => {
+        const sv = findService(p.service_id);
+        const cl = findClient(p.client_id);
+        return `<button onclick="viewPastReport('${p.id}')" class="w-full text-right p-3 border border-slate-200 rounded-lg hover:bg-sky-50 hover:border-sky-300 transition cursor-pointer block" style="background:white;">
+          <div class="font-semibold text-slate-800">${escapeHtml(sv?.name || '?')}</div>
+          <div class="text-xs text-slate-600">${fmtDate(p.case_date) || ''} · ${escapeHtml(cl?.name || '?')}</div>
+          ${p.report?.conclusion ? `<div class="text-xs text-slate-500 mt-1" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONCLUSION: ${escapeHtml(String(p.report.conclusion).slice(0, 90))}${String(p.report.conclusion).length > 90 ? '…' : ''}</div>` : ''}
+        </button>`;
+      }).join('')}
+    </div>`;
+  openModal('📚 تقارير سابقة', body, null, { width: '600px' });
+}
+
+function viewPastReport(caseId) {
+  const c = appData.cases.find(x => x.id === caseId);
+  if (!c || !c.report) return;
+  const r = c.report;
+  const cl = findClient(c.client_id);
+  const sv = findService(c.service_id);
+
+  const sectionsHtml = (r.sections || []).map(sec => `
+    <div class="mb-3">
+      <div class="font-bold italic text-slate-700" style="font-family:'Times New Roman',serif">${escapeHtml(sec.heading || '')}</div>
+      <div class="border border-slate-200 rounded p-2 bg-slate-50 text-sm whitespace-pre-wrap" style="font-family:'Times New Roman',serif; direction:ltr; text-align:left;">${escapeHtml(sec.content || '')}</div>
+    </div>`).join('');
+
+  const body = `
+    <div class="space-y-3">
+      <div class="bg-sky-50 p-3 rounded-lg text-sm border border-sky-200">
+        <strong>${escapeHtml(c.patient_name)}</strong> · ${fmtDate(c.case_date)} · ${escapeHtml(cl?.name || '?')} · ${escapeHtml(sv?.name || '?')}
+      </div>
+      ${r.title ? `<div class="font-bold text-base text-center" style="direction:ltr;">${escapeHtml(r.title)}</div>` : ''}
+      <div>${sectionsHtml}</div>
+      ${r.conclusion ? `<div>
+        <div class="font-bold text-slate-700">CONCLUSION:</div>
+        <div class="border border-slate-200 rounded p-2 bg-amber-50 text-sm whitespace-pre-wrap" style="font-family:'Times New Roman',serif; direction:ltr; text-align:left;">${escapeHtml(r.conclusion)}</div>
+      </div>` : ''}
+    </div>`;
+  openModal('📄 تقرير سابق (للقراءة فقط)', body, null, { width: '760px' });
 }
 
 function collectReportFromDom() {
@@ -1789,11 +2613,12 @@ function addReportSection() {
   const div = document.createElement('div');
   div.className = 'mb-3';
   div.setAttribute('data-idx', idx);
+  const ta = `<textarea class="sec-content-edit" data-field="content" rows="4" placeholder="المحتوى"></textarea>`;
   div.innerHTML = `
     <div class="flex gap-2 items-start">
       <div class="flex-1">
         <input type="text" class="sec-heading-edit" data-field="heading" placeholder="عنوان القسم">
-        <textarea class="sec-content-edit" data-field="content" rows="4" placeholder="المحتوى"></textarea>
+        ${voiceWrap(ta, 'ar-EG')}
       </div>
       <button type="button" onclick="this.closest('[data-idx]').remove()" class="text-red-600 hover:underline text-sm">حذف</button>
     </div>`;
@@ -2440,6 +3265,7 @@ function renderSettings() {
     { id: 'services',  label: '🩻 الخدمات',          show: () => can('perm_manage_services') },
     { id: 'prices',    label: '💲 الأسعار',          show: () => can('perm_manage_prices') },
     { id: 'templates', label: '📝 قوالب التقارير',   show: () => can('perm_manage_templates') },
+    { id: 'whatsapp',  label: '💬 قوالب الواتساب',   show: () => can('perm_manage_settings') },
     { id: 'lookups',   label: '📑 الفئات والطرق',    show: () => can('perm_view_finance') || can('perm_manage_settings') },
     { id: 'users',     label: '👥 المستخدمين',       show: () => can('perm_manage_users') },
     { id: 'app',       label: '🎨 إعدادات العيادة',  show: () => can('perm_manage_settings') },
@@ -2454,6 +3280,7 @@ function renderSettings() {
     services: renderServicesSettings,
     prices: renderPricesSettings,
     templates: renderTemplatesSettings,
+    whatsapp: renderWhatsappSettings,
     lookups: renderLookupsSettings,
     users: renderUsersSettings,
     app: renderAppSettings,
@@ -2538,7 +3365,8 @@ function renderClientsSettings() {
               <td>${escapeHtml(h.phone || '')}</td>
               <td><span class="badge ${h.active !== false ? 'badge-green' : 'badge-gray'}">${h.active !== false ? 'نشط' : 'موقوف'}</span></td>
               <td>
-                <button onclick="editClient('${h.id}')" class="text-sky-600 hover:underline text-sm">تعديل</button>
+                ${h.phone ? `<button onclick="waToClient('${h.id}')" class="text-emerald-600 hover:underline text-sm" title="إرسال واتساب">📲</button>` : ''}
+                <button onclick="editClient('${h.id}')" class="text-sky-600 hover:underline text-sm mr-2">تعديل</button>
                 <button onclick="deleteClient('${h.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
               </td>
             </tr>`).join('')}</tbody>
@@ -2840,6 +3668,107 @@ function addTplSection() {
     </div>
     <textarea class="sec-content-edit" data-field="content" rows="5" placeholder="المحتوى"></textarea>`;
   container.appendChild(div);
+}
+
+//----- WhatsApp Templates -----
+function renderWhatsappSettings() {
+  const tpls = appData.whatsapp_templates || [];
+  const audienceLabel = (a) => a === 'patient' ? '🧑‍⚕️ مريض' : '🏥 عميل';
+  return `
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-slate-800">💬 قوالب الواتساب (${tpls.length})</h3>
+        <button onclick="editWhatsappTemplate()" class="btn btn-primary">➕ إضافة قالب</button>
+      </div>
+
+      <div class="bg-sky-50 border border-sky-200 rounded-lg p-3 mb-4 text-xs text-slate-700">
+        <div class="font-semibold mb-1">💡 المتغيرات المتاحة في نص الرسالة:</div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1">
+          <code>{client_name}</code>
+          <code>{patient_name}</code>
+          <code>{amount_due}</code>
+          <code>{days_overdue}</code>
+          <code>{date}</code>
+          <code>{service_name}</code>
+          <code>{clinic_name}</code>
+          <code>{doctor_name}</code>
+        </div>
+      </div>
+
+      ${tpls.length === 0 ? `<p class="text-slate-500 text-center py-6">لا توجد قوالب. اضغط "إضافة قالب" للبدء.</p>` :
+      `<div class="overflow-x-auto">
+        <table>
+          <thead><tr><th>الاسم</th><th>للجمهور</th><th>معاينة</th><th>الترتيب</th><th></th></tr></thead>
+          <tbody>${tpls.map(t => `
+            <tr>
+              <td class="font-semibold">${escapeHtml(t.name)}</td>
+              <td><span class="badge ${t.audience === 'patient' ? 'badge-blue' : 'badge-green'}">${audienceLabel(t.audience)}</span></td>
+              <td class="text-xs text-slate-600" style="max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml((t.body || '').slice(0, 60))}${(t.body || '').length > 60 ? '…' : ''}</td>
+              <td>${t.sort_order ?? 0}</td>
+              <td>
+                <button onclick="editWhatsappTemplate('${t.id}')" class="text-sky-600 hover:underline text-sm">تعديل</button>
+                <button onclick="deleteWhatsappTemplate('${t.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`}
+    </div>`;
+}
+
+function editWhatsappTemplate(id = null) {
+  const t = id ? (appData.whatsapp_templates || []).find(x => x.id === id) : { name: '', body: '', audience: 'client', sort_order: (appData.whatsapp_templates?.length || 0) + 1, active: true };
+  if (!t) { toast('قالب غير موجود', 'error'); return; }
+  const body = `
+    <div class="space-y-3">
+      <div><label>اسم القالب *</label><input type="text" id="wt-name" value="${escapeHtml(t.name || '')}" placeholder="مثل: تذكير متأخرات"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label>الجمهور *</label>
+          <select id="wt-audience">
+            <option value="client" ${t.audience === 'client' ? 'selected' : ''}>🏥 عميل (مستشفى)</option>
+            <option value="patient" ${t.audience === 'patient' ? 'selected' : ''}>🧑‍⚕️ مريض</option>
+          </select>
+        </div>
+        <div><label>الترتيب</label><input type="number" id="wt-order" value="${t.sort_order || 0}"></div>
+      </div>
+      <div>
+        <label>نص الرسالة *</label>
+        <textarea id="wt-body" rows="10" style="font-family:inherit; line-height:1.6;" placeholder="استخدم {client_name}، {amount_due}، إلخ...">${escapeHtml(t.body || '')}</textarea>
+      </div>
+      <div class="text-xs text-slate-500">
+        المتغيرات: <code>{client_name}</code>, <code>{patient_name}</code>, <code>{amount_due}</code>, <code>{days_overdue}</code>, <code>{date}</code>, <code>{service_name}</code>, <code>{clinic_name}</code>, <code>{doctor_name}</code>
+      </div>
+    </div>`;
+  openModal(id ? '✏️ تعديل قالب' : '➕ قالب جديد', body, async () => {
+    const name = document.getElementById('wt-name').value.trim();
+    const txt  = document.getElementById('wt-body').value.trim();
+    const aud  = document.getElementById('wt-audience').value;
+    const ord  = Number(document.getElementById('wt-order').value) || 0;
+    if (!name || !txt) { toast('الاسم والنص مطلوبان', 'error'); return false; }
+    const payload = { name, body: txt, audience: aud, sort_order: ord, active: true };
+    let error;
+    if (id) {
+      ({ error } = await supa.from('whatsapp_templates').update(payload).eq('id', id));
+    } else {
+      ({ error } = await supa.from('whatsapp_templates').insert(payload));
+    }
+    if (error) throw error;
+    await reloadTable('whatsapp_templates');
+    render();
+    toast('تم الحفظ ✓');
+  }, { saveLabel: '💾 حفظ', width: '640px' });
+}
+
+async function deleteWhatsappTemplate(id) {
+  const t = (appData.whatsapp_templates || []).find(x => x.id === id);
+  if (!t) return;
+  confirmAction(`حذف قالب "${t.name}"؟`, async () => {
+    const { error } = await supa.from('whatsapp_templates').delete().eq('id', id);
+    if (error) { toast('خطأ: ' + error.message, 'error'); return; }
+    await reloadTable('whatsapp_templates');
+    render();
+    toast('تم الحذف ✓');
+  });
 }
 
 //----- Lookups (Expense Categories + Payment Methods) -----
