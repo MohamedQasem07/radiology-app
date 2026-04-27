@@ -586,6 +586,118 @@ let ui = {
   },
 };
 
+//==============================================================
+// CSV EXPORT (Excel-compatible with UTF-8 BOM for Arabic)
+//==============================================================
+function csvEscape(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function exportCsv(filename, rows) {
+  if (!rows || !rows.length) { toast('لا توجد بيانات للتصدير', 'warn'); return; }
+  const headers = Object.keys(rows[0]);
+  const lines = [headers.join(',')];
+  rows.forEach(r => lines.push(headers.map(h => csvEscape(r[h])).join(',')));
+  const bom = '﻿';
+  const blob = new Blob([bom + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  toast('تم التصدير ✓');
+}
+
+function exportCasesToCsv() {
+  let filtered = [...appData.cases];
+  const f = ui.casesFilter;
+  if (f.client)   filtered = filtered.filter(c => c.client_id === f.client);
+  if (f.from)     filtered = filtered.filter(c => (c.case_date || '') >= f.from);
+  if (f.to)       filtered = filtered.filter(c => (c.case_date || '') <= f.to);
+  if (f.cashOnly === 'cash') filtered = filtered.filter(c => c.cash_direct);
+  if (f.cashOnly === 'hosp') filtered = filtered.filter(c => !c.cash_direct);
+  if (f.ptype)    filtered = filtered.filter(c => c.patient_type === f.ptype);
+  if (f.search) {
+    const q = f.search.toLowerCase();
+    filtered = filtered.filter(c => (c.patient_name || '').toLowerCase().includes(q) || (c.nationality || '').toLowerCase().includes(q));
+  }
+  filtered.sort((a, b) => (b.case_date || '').localeCompare(a.case_date || ''));
+
+  const rows = filtered.map(c => ({
+    'التاريخ': c.case_date || '',
+    'اسم المريض': c.patient_name || '',
+    'تاريخ الميلاد': c.date_of_birth || '',
+    'الجنسية': c.nationality || '',
+    'نوع المريض': patientTypeLabel(c.patient_type),
+    'العميل': findClient(c.client_id)?.name || '',
+    'الخدمة': findService(c.service_id)?.name || '',
+    'السعر (ج.م)': caseAmount(c),
+    'المصدر': c.cash_direct ? 'كاش مباشر' : 'من العميل',
+    'تقرير مكتوب': c.report ? 'نعم' : 'لا',
+    'ملاحظات': c.notes || '',
+  }));
+  const filterTag = f.client ? '_' + (findClient(f.client)?.name || 'client').replace(/\s+/g, '') : '';
+  exportCsv(`cases${filterTag}_${todayISO()}.csv`, rows);
+}
+
+function exportStatementToCsv() {
+  const clientId = document.getElementById('stmt-client')?.value;
+  if (!clientId) { toast('اختر عميل أولاً', 'warn'); return; }
+  const from = document.getElementById('stmt-from')?.value || null;
+  const to = document.getElementById('stmt-to')?.value || null;
+  const h = findClient(clientId);
+  const { opening, earned, paid, due, cases, payments } = clientDue(clientId, from, to, !(from || to));
+  const cashInfo = clientCashDirect(clientId, from, to);
+
+  const ledger = [];
+  if (opening > 0 && !from && !to) {
+    ledger.push({ date: '', desc: 'رصيد أول مدة', earned: opening, paid: 0, sortKey: 0 });
+  }
+  cases.forEach(c => ledger.push({
+    date: c.case_date,
+    desc: `حالة: ${c.patient_name || ''} — ${findService(c.service_id)?.name || ''}`,
+    earned: caseAmount(c), paid: 0, sortKey: 1,
+  }));
+  payments.forEach(p => ledger.push({
+    date: p.payment_date,
+    desc: `دفعة: ${p.method || ''}${p.notes ? ' — ' + p.notes : ''}`,
+    earned: 0, paid: Number(p.amount) || 0, sortKey: 2,
+  }));
+  ledger.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.sortKey - b.sortKey);
+
+  let running = 0;
+  const rows = ledger.map(row => {
+    running = running + row.earned - row.paid;
+    return {
+      'التاريخ': row.date || '',
+      'البيان': row.desc,
+      'قيمة الحالة': row.earned || '',
+      'المدفوع': row.paid || '',
+      'الرصيد': running,
+    };
+  });
+  // Add summary row
+  rows.push({ 'التاريخ': '', 'البيان': '— الإجمالي —', 'قيمة الحالة': opening + earned, 'المدفوع': paid, 'الرصيد': due });
+
+  // Cash-direct cases (info)
+  if (cashInfo.cases.length > 0) {
+    rows.push({ 'التاريخ': '', 'البيان': '', 'قيمة الحالة': '', 'المدفوع': '', 'الرصيد': '' });
+    rows.push({ 'التاريخ': '— كاش مباشر (للعلم فقط) —', 'البيان': '', 'قيمة الحالة': '', 'المدفوع': '', 'الرصيد': '' });
+    cashInfo.cases.forEach(c => rows.push({
+      'التاريخ': c.case_date,
+      'البيان': `${c.patient_name || ''} — ${findService(c.service_id)?.name || ''}`,
+      'قيمة الحالة': caseAmount(c),
+      'المدفوع': '',
+      'الرصيد': '',
+    }));
+  }
+
+  const safeName = (h?.name || 'client').replace(/\s+/g, '_');
+  exportCsv(`statement_${safeName}_${todayISO()}.csv`, rows);
+}
+
 function paginate(arr, page, size) {
   const total = arr.length;
   const totalPages = Math.max(1, Math.ceil(total / size));
@@ -1428,7 +1540,10 @@ function renderCases() {
       <div class="card no-print">
         <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
           <h2 class="text-lg font-bold text-slate-800">📋 الحالات (${filtered.length})</h2>
-          ${can('perm_add_case') ? `<button onclick="switchTab('newcase')" class="btn btn-primary">➕ حالة جديدة</button>` : ''}
+          <div class="flex gap-2">
+            ${can('perm_export_data') ? `<button onclick="exportCasesToCsv()" class="btn btn-secondary">📊 تصدير Excel</button>` : ''}
+            ${can('perm_add_case') ? `<button onclick="switchTab('newcase')" class="btn btn-primary">➕ حالة جديدة</button>` : ''}
+          </div>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-3">
           <input type="text" placeholder="🔍 بحث (اسم/جنسية)" oninput="ui.casesFilter.search=this.value; render()" value="${escapeHtml(f.search)}">
@@ -2023,9 +2138,10 @@ function renderStatement() {
           </div>
           <div><label>من تاريخ</label><input type="date" id="stmt-from" onchange="generateStatement()"></div>
           <div><label>إلى تاريخ</label><input type="date" id="stmt-to" onchange="generateStatement()"></div>
-          <div class="flex items-end gap-2">
-            <button onclick="window.print()" class="btn btn-primary flex-1">🖨️ طباعة</button>
-            <button onclick="downloadStatementPdf()" class="btn btn-success flex-1">📥 PDF</button>
+          <div class="flex items-end gap-2 flex-wrap">
+            <button onclick="window.print()" class="btn btn-primary">🖨️ طباعة</button>
+            <button onclick="downloadStatementPdf()" class="btn btn-success">📥 PDF</button>
+            ${can('perm_export_data') ? `<button onclick="exportStatementToCsv()" class="btn btn-secondary">📊 Excel</button>` : ''}
           </div>
         </div>
       </div>
