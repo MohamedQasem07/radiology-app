@@ -194,12 +194,36 @@
     .fab-emoji { font-size: 18px; }
     @media print { .fab-container { display: none !important; } }
 
-    /* Voice dictation */
+    /* Voice dictation — inline mic button */
     .voice-wrap { position: relative; }
     .voice-btn { position: absolute; top: 6px; left: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: all .15s; }
     .voice-btn:hover { background: #e2e8f0; }
-    .voice-btn.active { background: #ef4444; color: white; border-color: #dc2626; animation: voicePulse 1.2s ease-in-out infinite; }
-    @keyframes voicePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); } 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); } }
+
+    /* Voice dictation — full-screen overlay */
+    .voice-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.85); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .voice-overlay[hidden] { display: none; }
+    .voice-panel { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .voice-status-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+    .voice-pulse { width: 16px; height: 16px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
+    .voice-pulse.listening { background: #ef4444; animation: voicePulse 1.2s ease-in-out infinite; }
+    @keyframes voicePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.7); transform: scale(1); } 50% { box-shadow: 0 0 0 12px rgba(239,68,68,0); transform: scale(1.15); } }
+    .voice-status-text { font-size: 16px; font-weight: 600; color: #0f172a; flex: 1; }
+    .voice-lang-toggle { display: flex; gap: 8px; }
+    .voice-lang-btn { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #e2e8f0; background: white; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .15s; }
+    .voice-lang-btn:hover { background: #f1f5f9; }
+    .voice-lang-btn.active { background: #0ea5e9; color: white; border-color: #0284c7; }
+    .voice-transcript-box { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; min-height: 120px; max-height: 200px; overflow-y: auto; }
+    .voice-transcript-label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 8px; }
+    .voice-transcript-content { font-size: 15px; line-height: 1.7; direction: ltr; text-align: left; min-height: 60px; word-wrap: break-word; }
+    .voice-final { color: #0f172a; }
+    .voice-interim { color: #94a3b8; font-style: italic; }
+    .voice-placeholder { color: #cbd5e1; font-style: italic; }
+    .voice-actions { display: flex; gap: 10px; }
+    .voice-cancel-btn { flex: 1; padding: 14px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .voice-cancel-btn:hover { background: #e2e8f0; }
+    .voice-stop-btn { flex: 2; padding: 14px; background: linear-gradient(135deg,#10b981,#059669); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,.4); }
+    .voice-stop-btn:hover { box-shadow: 0 6px 16px rgba(16,185,129,.6); transform: translateY(-1px); }
+    .voice-hint { font-size: 12px; color: #64748b; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; line-height: 1.5; }
 
     /* Force hidden attribute to override flex/grid display */
     [hidden] { display: none !important; }
@@ -1574,80 +1598,226 @@ document.addEventListener('click', (e) => {
 });
 
 //==============================================================
-// VOICE DICTATION (Web Speech API — Chrome/Edge/Safari)
+// VOICE DICTATION — Full-screen overlay (Chrome/Edge/Safari)
+//
+// Implementation notes:
+//  - On iOS Safari, SpeechRecognition auto-ends after a few seconds of
+//    silence even when continuous=true. We auto-restart unless the user
+//    pressed Stop, so dictation feels uninterrupted.
+//  - We use abort() instead of stop() to terminate immediately on Stop —
+//    stop() can hang for a second on mobile.
+//  - The overlay z-index is above the modal (300 > 200) so it works inside
+//    the report editor modal.
 //==============================================================
-let _activeRecognition = null;
+let _voiceState = null; // { rec, targetEl, finalText, interim, lang, userStopped }
 
-function voiceDictate(targetEl, btnEl) {
+function voiceDictate(targetEl) {
   if (!targetEl) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    toast('متصفحك لا يدعم الإملاء الصوتي. استخدم Chrome / Edge / Safari', 'warn');
+    toast('المتصفح لا يدعم الإملاء الصوتي. استخدم Chrome أو Safari iOS', 'warn');
     return;
   }
-  // If already recording, stop it
-  if (_activeRecognition) {
-    try { _activeRecognition.stop(); } catch (_) {}
-    _activeRecognition = null;
-    document.querySelectorAll('.voice-btn.active').forEach(b => { b.classList.remove('active'); b.textContent = '🎤'; });
-    return;
-  }
+  if (_voiceState) return; // Already running
 
-  const rec = new SR();
-  // Default to Arabic Egyptian, with fallback recognition for English medical terms
-  rec.lang = (targetEl.dataset.voiceLang) || 'ar-EG';
+  const initial = targetEl.value || '';
+  const seed = initial && !/[\s\n]$/.test(initial) ? initial + ' ' : initial;
+
+  _voiceState = {
+    rec: null,
+    targetEl,
+    finalText: seed,
+    interim: '',
+    lang: targetEl.dataset.voiceLang || 'ar-EG',
+    userStopped: false,
+    startedAt: Date.now(),
+  };
+
+  showVoiceOverlay();
+  startVoiceRecognition();
+}
+
+function startVoiceRecognition() {
+  if (!_voiceState || _voiceState.userStopped) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec;
+  try {
+    rec = new SR();
+  } catch (e) {
+    toast('فشل تهيئة الإملاء: ' + e.message, 'error');
+    cleanupVoice();
+    return;
+  }
+  rec.lang = _voiceState.lang;
   rec.continuous = true;
   rec.interimResults = true;
+  rec.maxAlternatives = 1;
 
-  let finalText = targetEl.value || '';
-  if (finalText && !finalText.endsWith(' ') && !finalText.endsWith('\n')) finalText += ' ';
-  let interim = '';
+  rec.onstart = () => {
+    setVoiceStatus('listening');
+  };
 
   rec.onresult = (e) => {
-    interim = '';
+    let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
-      if (r.isFinal) finalText += r[0].transcript + ' ';
+      if (r.isFinal) _voiceState.finalText += r[0].transcript + ' ';
       else interim += r[0].transcript;
     }
-    targetEl.value = finalText + interim;
-    // Auto-grow textareas
-    if (targetEl.tagName === 'TEXTAREA') {
-      targetEl.scrollTop = targetEl.scrollHeight;
-    }
+    _voiceState.interim = interim;
+    updateVoiceTranscript();
   };
 
   rec.onerror = (e) => {
-    console.warn('[voice] error:', e.error);
+    console.warn('[voice] error:', e.error, e);
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      toast('السماح بالميكروفون مطلوب', 'error');
-    } else if (e.error !== 'aborted' && e.error !== 'no-speech') {
+      setVoiceStatus('denied');
+      toast('السماح بالميكروفون مطلوب — افتح الإعدادات وفعّله', 'error');
+      _voiceState.userStopped = true;
+      cleanupVoice();
+    } else if (e.error === 'no-speech' || e.error === 'aborted' || e.error === 'audio-capture') {
+      // Will be auto-restarted by onend
+    } else if (e.error === 'network') {
+      toast('انقطاع في الشبكة — تأكد من الاتصال', 'error');
+    } else {
       toast('خطأ في الإملاء: ' + e.error, 'error');
     }
   };
 
   rec.onend = () => {
-    _activeRecognition = null;
-    if (btnEl) { btnEl.classList.remove('active'); btnEl.textContent = '🎤'; }
-    document.querySelectorAll('.voice-btn.active').forEach(b => { b.classList.remove('active'); b.textContent = '🎤'; });
-    targetEl.value = finalText.trim();
+    if (!_voiceState) return;
+    if (_voiceState.userStopped) {
+      cleanupVoice();
+      return;
+    }
+    // Auto-restart — common on mobile after silence
+    setVoiceStatus('reconnecting');
+    setTimeout(() => {
+      if (_voiceState && !_voiceState.userStopped) startVoiceRecognition();
+    }, 250);
   };
 
   try {
     rec.start();
-    _activeRecognition = rec;
-    if (btnEl) { btnEl.classList.add('active'); btnEl.textContent = '⏹'; }
-    targetEl.focus();
+    _voiceState.rec = rec;
   } catch (e) {
-    toast('فشل بدء الإملاء: ' + e.message, 'error');
+    // start() throws if already started — wait briefly and retry
+    if (String(e.message || '').toLowerCase().includes('already started')) {
+      setTimeout(() => { if (_voiceState && !_voiceState.userStopped) startVoiceRecognition(); }, 300);
+    } else {
+      toast('فشل بدء الإملاء: ' + e.message, 'error');
+      _voiceState.userStopped = true;
+      cleanupVoice();
+    }
   }
+}
+
+function changeVoiceLang(newLang) {
+  if (!_voiceState) return;
+  _voiceState.lang = newLang;
+  // Update language buttons
+  document.querySelectorAll('.voice-lang-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-lang') === newLang);
+  });
+  // Restart recognition with new language
+  if (_voiceState.rec) {
+    try { _voiceState.rec.abort(); } catch (_) {}
+  }
+  // onend will auto-restart with the new lang
+}
+
+function stopVoiceDictation(insertText) {
+  if (!_voiceState) return;
+  _voiceState.userStopped = true;
+  // Insert the transcribed text into the target
+  if (insertText && _voiceState.targetEl) {
+    _voiceState.targetEl.value = (_voiceState.finalText + (_voiceState.interim || '')).trim();
+    // Trigger input event so any listeners (e.g., character counters) fire
+    try { _voiceState.targetEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+  }
+  if (_voiceState.rec) {
+    try { _voiceState.rec.abort(); } catch (_) {}
+  }
+  cleanupVoice();
+}
+
+function cleanupVoice() {
+  hideVoiceOverlay();
+  _voiceState = null;
+}
+
+// ----- Overlay UI -----
+function showVoiceOverlay() {
+  let ov = document.getElementById('voice-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'voice-overlay';
+    ov.className = 'voice-overlay';
+    document.body.appendChild(ov);
+  }
+  const lang = _voiceState?.lang || 'ar-EG';
+  ov.innerHTML = `
+    <div class="voice-panel">
+      <div class="voice-status-row">
+        <div class="voice-pulse"></div>
+        <div class="voice-status-text" id="voice-status-text">🎤 جاري التجهيز...</div>
+      </div>
+      <div class="voice-lang-toggle">
+        <button class="voice-lang-btn ${lang === 'ar-EG' ? 'active' : ''}" data-lang="ar-EG" onclick="changeVoiceLang('ar-EG')">🇪🇬 عربي</button>
+        <button class="voice-lang-btn ${lang === 'en-US' ? 'active' : ''}" data-lang="en-US" onclick="changeVoiceLang('en-US')">🇺🇸 English</button>
+      </div>
+      <div class="voice-transcript-box">
+        <div class="voice-transcript-label">📝 النص المُسجّل (مباشر):</div>
+        <div class="voice-transcript-content" id="voice-transcript"></div>
+      </div>
+      <div class="voice-actions">
+        <button class="btn voice-cancel-btn" onclick="stopVoiceDictation(false)">✖ إلغاء</button>
+        <button class="btn voice-stop-btn" onclick="stopVoiceDictation(true)">✅ إدراج وإيقاف</button>
+      </div>
+      <div class="voice-hint">💡 لو الكلام مش بيظهر: تأكد إنك سامحت الميكروفون من إعدادات المتصفح. لو فيه مصطلحات إنجليزية، بدّل اللغة فوق.</div>
+    </div>`;
+  ov.hidden = false;
+  // Initial transcript render
+  updateVoiceTranscript();
+}
+
+function hideVoiceOverlay() {
+  const ov = document.getElementById('voice-overlay');
+  if (ov) ov.hidden = true;
+}
+
+function setVoiceStatus(state) {
+  const el = document.getElementById('voice-status-text');
+  const pulse = document.querySelector('.voice-pulse');
+  if (!el) return;
+  if (state === 'listening') {
+    el.textContent = '🔴 جاري الاستماع... تكلّم';
+    if (pulse) pulse.classList.add('listening');
+  } else if (state === 'reconnecting') {
+    el.textContent = '🔄 إعادة الاتصال...';
+    if (pulse) pulse.classList.remove('listening');
+  } else if (state === 'denied') {
+    el.textContent = '🚫 السماح بالميكروفون مطلوب';
+    if (pulse) pulse.classList.remove('listening');
+  } else {
+    el.textContent = '🎤 جاري التجهيز...';
+    if (pulse) pulse.classList.remove('listening');
+  }
+}
+
+function updateVoiceTranscript() {
+  const el = document.getElementById('voice-transcript');
+  if (!el || !_voiceState) return;
+  const finalSpan = `<span class="voice-final">${escapeHtml(_voiceState.finalText)}</span>`;
+  const interimSpan = _voiceState.interim ? `<span class="voice-interim">${escapeHtml(_voiceState.interim)}</span>` : '';
+  el.innerHTML = (finalSpan + interimSpan) || '<span class="voice-placeholder">— ابدأ الكلام —</span>';
+  el.scrollTop = el.scrollHeight;
 }
 
 // Generate a voice-enabled wrapper around a textarea (used in report editor)
 function voiceWrap(textareaHtml, lang = 'ar-EG') {
-  // Inject data-voice-lang into the textarea tag
   const enhanced = textareaHtml.replace(/<textarea/, `<textarea data-voice-lang="${lang}"`);
-  return `<div class="voice-wrap">${enhanced}<button type="button" class="voice-btn" title="إملاء صوتي (اضغط للبدء/الإيقاف)" onclick="voiceDictate(this.parentElement.querySelector('textarea'), this)">🎤</button></div>`;
+  return `<div class="voice-wrap">${enhanced}<button type="button" class="voice-btn" title="إملاء صوتي" onclick="voiceDictate(this.parentElement.querySelector('textarea'))">🎤</button></div>`;
 }
 
 // WhatsApp to the hospital (client) ABOUT a specific case
