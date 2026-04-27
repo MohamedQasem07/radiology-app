@@ -183,14 +183,14 @@
     .usearch-footer kbd { background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 5px; font-family: monospace; font-size: 10px; margin-left: 3px; }
 
     /* Quick Actions FAB */
-    .fab-container { position: fixed; bottom: 20px; left: 20px; z-index: 80; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+    .fab-container { position: fixed; bottom: 20px; right: 20px; z-index: 80; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
     .fab-main { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,#0ea5e9,#0369a1); color: white; border: none; box-shadow: 0 6px 18px rgba(14,165,233,.4); font-size: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .2s, box-shadow .2s; }
     .fab-main:hover { box-shadow: 0 8px 24px rgba(14,165,233,.55); transform: scale(1.05); }
     .fab-main.open { transform: rotate(45deg); background: linear-gradient(135deg,#ef4444,#b91c1c); box-shadow: 0 6px 18px rgba(239,68,68,.4); }
     .fab-menu { display: flex; flex-direction: column; gap: 8px; animation: fabSlideUp .18s ease-out; }
     @keyframes fabSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .fab-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 14px; background: white; border: 1px solid #e2e8f0; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.08); font-size: 14px; font-weight: 600; color: #1e293b; white-space: nowrap; transition: all .15s; }
-    .fab-item:hover { background: #f1f5f9; transform: translateX(-4px); }
+    .fab-item:hover { background: #f1f5f9; transform: translateX(4px); }
     .fab-emoji { font-size: 18px; }
     @media print { .fab-container { display: none !important; } }
 
@@ -894,13 +894,107 @@ function openWhatsAppLink(phone, text) {
   window.open('https://wa.me/' + p + '?text=' + encodeURIComponent(text), '_blank');
 }
 
+//==============================================================
+// REPORT PDF (offscreen render — used by WhatsApp share with PDF)
+//==============================================================
+async function ensureHtml2pdf() {
+  if (window.html2pdf) return;
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+  document.head.appendChild(s);
+  await new Promise((resolve, reject) => {
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('فشل تحميل مكتبة PDF'));
+  });
+}
+
+// Build the same letterhead-styled HTML the print preview produces,
+// but as a single string we can drop into an offscreen container.
+function buildReportHtmlForPdf(c) {
+  const report = c.report || {};
+  const settings = appData.settings || {};
+  const sectionsHtml = (report.sections || []).map(sec => `
+    <h3 style="font-size:15px; font-weight:bold; font-style:italic; text-decoration:underline; margin:14px 0 6px 0;">${escapeHtml(sec.heading || '')}</h3>
+    <div style="font-size:13px; line-height:1.6; white-space:pre-wrap; margin-bottom:8px; padding-left:8px;">${escapeHtml(sec.content || '')}</div>
+  `).join('');
+
+  const headerImg = settings.letterhead_header_url ? `<div style="text-align:center;"><img src="${escapeHtml(settings.letterhead_header_url)}" style="max-width:100%; max-height:120px; margin-bottom:8px;" crossorigin="anonymous"></div>` : '';
+  const footerImg = settings.letterhead_footer_url ? `<div style="text-align:center;"><img src="${escapeHtml(settings.letterhead_footer_url)}" style="max-width:100%; max-height:80px; margin-top:8px;" crossorigin="anonymous"></div>` : '';
+
+  const letterheadFallback = headerImg ? '' : `
+    <div style="text-align:center; border-bottom:2px solid #333; padding-bottom:12px; margin-bottom:20px;">
+      <h1 style="font-size:26px; font-weight:bold; margin:0;">${escapeHtml(settings.clinic_name || 'RADIOLOGY REPORT')}</h1>
+      ${settings.doctor_name ? `<div style="font-size:13px; color:#555; margin-top:4px;">Dr. ${escapeHtml(settings.doctor_name)}</div>` : ''}
+      ${settings.address ? `<div style="font-size:13px; color:#555; margin-top:4px;">${escapeHtml(settings.address)}</div>` : ''}
+      ${settings.phone ? `<div style="font-size:13px; color:#555; margin-top:4px;">Tel: ${escapeHtml(settings.phone)}</div>` : ''}
+    </div>`;
+
+  return `
+    <div id="__pdf_report_root" style="font-family:'Times New Roman',Times,serif; background:white; width:210mm; min-height:270mm; padding:20mm; box-sizing:border-box; direction:ltr; text-align:left; color:#000; display:flex; flex-direction:column;">
+      ${headerImg}
+      ${letterheadFallback}
+      <h2 style="text-align:center; font-size:18px; font-weight:bold; font-style:italic; text-decoration:underline; margin:28px 0 18px 0;">${escapeHtml(report.title || '')}</h2>
+      <div style="flex:1 1 auto;">
+        ${sectionsHtml}
+        ${report.conclusion ? `
+          <div style="margin-top:18px;">
+            <h3 style="font-size:15px; font-weight:bold; text-decoration:underline; margin-bottom:6px;">CONCLUSION:</h3>
+            <div style="font-size:13px; white-space:pre-wrap; line-height:1.6; padding-left:8px;">${escapeHtml(report.conclusion)}</div>
+          </div>` : ''}
+        <div style="margin-top:50px; text-align:right; font-size:13px; font-weight:bold;">Dr. Signature</div>
+      </div>
+      <div style="margin-top:40px; padding-top:10px; border-top:1px solid #999; font-size:12px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span><span style="font-weight:bold; font-style:italic; margin-left:4px;">Patient:</span>${escapeHtml(c.patient_name || '—')}</span>
+        <span><span style="font-weight:bold; font-style:italic; margin-left:4px;">Date of Birth:</span>${fmtDateEn(c.date_of_birth) || '—'}</span>
+        <span><span style="font-weight:bold; font-style:italic; margin-left:4px;">Date of Exam:</span>${fmtDateEn(c.case_date) || '—'}</span>
+      </div>
+      ${footerImg}
+    </div>`;
+}
+
+// Generate a PDF File (in-memory) for the given case's report.
+// Returns: File object on success, throws on error.
+async function buildReportPdfFile(c) {
+  if (!c || !c.report) throw new Error('لا يوجد تقرير محفوظ لهذه الحالة');
+  await ensureHtml2pdf();
+
+  const safePatient = (c.patient_name || 'Report').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 50);
+  const filename = `${safePatient}_${c.case_date || todayISO()}.pdf`;
+
+  // Build hidden offscreen container
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; opacity:0; pointer-events:none;';
+  wrap.innerHTML = buildReportHtmlForPdf(c);
+  document.body.appendChild(wrap);
+
+  try {
+    const blob = await html2pdf().set({
+      margin: [10, 10, 10, 10],
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+    }).from(wrap.querySelector('#__pdf_report_root')).outputPdf('blob');
+    return new File([blob], filename, { type: 'application/pdf' });
+  } finally {
+    wrap.remove();
+  }
+}
+
 // Picks a template for the given audience, fills variables, and opens WhatsApp.
-// ctx: { phone, client_name, amount_due, days_overdue, patient_name, service_name }
+// ctx: { phone, client_name, amount_due, days_overdue, patient_name, service_name, caseId? }
+// If ctx.caseId points to a case with a saved report, the picker shows an
+// "Attach PDF" option that uses navigator.share() to send the file.
 function openWhatsAppPicker(audience, ctx) {
   const templates = (appData.whatsapp_templates || []).filter(t => t.audience === audience && t.active !== false);
   if (!ctx.phone) { toast('لا يوجد رقم هاتف مسجّل', 'error'); return; }
+
+  const caseObj = ctx.caseId ? appData.cases.find(x => x.id === ctx.caseId) : null;
+  const hasReport = !!(caseObj && caseObj.report);
+  const canShareFiles = !!(navigator.canShare && navigator.share);
+
   if (templates.length === 0) {
-    // No templates yet — open WA with a blank text
     openWhatsAppLink(ctx.phone, '');
     return;
   }
@@ -908,6 +1002,7 @@ function openWhatsAppPicker(audience, ctx) {
   const audienceLabel = audience === 'client' ? 'العميل' : 'المريض';
   const previewId = 'wa-preview-' + Date.now();
   const selectId  = 'wa-select-'  + Date.now();
+  const attachId  = 'wa-attach-'  + Date.now();
 
   const optionsHtml = templates.map((t, i) =>
     `<option value="${t.id}" ${i === 0 ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
@@ -915,11 +1010,27 @@ function openWhatsAppPicker(audience, ctx) {
 
   const firstFilled = applyTemplateVars(templates[0].body, ctx);
 
+  // PDF attach toggle (only when case has a saved report)
+  const attachBox = hasReport ? `
+    <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:10px;">
+      <label class="flex items-start gap-2 cursor-pointer m-0">
+        <input type="checkbox" id="${attachId}" class="mt-1 w-5 h-5 cursor-pointer" ${canShareFiles ? 'checked' : ''} ${canShareFiles ? '' : 'disabled'}>
+        <div>
+          <div class="font-bold text-emerald-800">📎 إرفاق ملف التقرير PDF</div>
+          <div class="text-xs text-slate-600 mt-1">
+            ${canShareFiles
+              ? 'هيفتح شاشة المشاركة في الموبايل — اختار "WhatsApp" → الشات يفتح بالـ PDF + النص جاهزين للإرسال.'
+              : '⚠️ متصفحك مش بيدعم مشاركة الملفات (استخدم Chrome/Safari على الموبايل).'}
+          </div>
+        </div>
+      </label>
+    </div>` : '';
+
   const body = `
     <div class="space-y-3">
       <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
-        <div><strong>إرسال إلى:</strong> ${escapeHtml(audienceLabel)} ${ctx.client_name ? '— ' + escapeHtml(ctx.client_name) : ''}${ctx.patient_name ? '— ' + escapeHtml(ctx.patient_name) : ''}</div>
-        <div class="text-slate-600 mt-1"><strong>رقم:</strong> ${escapeHtml(normalizePhone(ctx.phone))}</div>
+        <div><strong>إرسال إلى:</strong> ${escapeHtml(audienceLabel)} ${ctx.client_name ? '— ' + escapeHtml(ctx.client_name) : ''}${ctx.patient_name ? ' (مريض: ' + escapeHtml(ctx.patient_name) + ')' : ''}</div>
+        <div class="text-slate-600 mt-1"><strong>رقم:</strong> <span dir="ltr">${escapeHtml(normalizePhone(ctx.phone))}</span></div>
       </div>
       <div>
         <label>اختر قالب</label>
@@ -929,18 +1040,46 @@ function openWhatsAppPicker(audience, ctx) {
       </div>
       <div>
         <label>نص الرسالة (يمكن تعديله قبل الإرسال)</label>
-        <textarea id="${previewId}" rows="10" style="font-family:inherit; line-height:1.6;">${escapeHtml(firstFilled)}</textarea>
+        <textarea id="${previewId}" rows="9" style="font-family:inherit; line-height:1.6;">${escapeHtml(firstFilled)}</textarea>
       </div>
+      ${attachBox}
       <div class="text-xs text-slate-500">
-        💡 المتغيرات تتحوّل تلقائياً: <code>{client_name}</code>, <code>{amount_due}</code>, <code>{days_overdue}</code>, <code>{clinic_name}</code>, <code>{doctor_name}</code>, <code>{date}</code>, <code>{patient_name}</code>, <code>{service_name}</code>
+        💡 المتغيرات تتحوّل تلقائياً: <code>{client_name}</code>, <code>{patient_name}</code>, <code>{amount_due}</code>, <code>{days_overdue}</code>, <code>{date}</code>, <code>{service_name}</code>, <code>{clinic_name}</code>, <code>{doctor_name}</code>
       </div>
     </div>`;
 
   openModal('📲 إرسال واتساب', body, async () => {
     const txt = document.getElementById(previewId).value || '';
+    const wantPdf = hasReport && document.getElementById(attachId)?.checked;
+
+    if (wantPdf && canShareFiles) {
+      try {
+        toast('جاري تجهيز التقرير PDF...', 'info');
+        const file = await buildReportPdfFile(caseObj);
+        if (navigator.canShare({ files: [file], text: txt })) {
+          await navigator.share({ files: [file], text: txt, title: 'تقرير أشعة' });
+          return true;
+        }
+        // Browser said canShare(text) failed — try without text
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'تقرير أشعة' });
+          // Then open WA with the text as fallback so user can paste in same chat
+          setTimeout(() => openWhatsAppLink(ctx.phone, txt), 500);
+          return true;
+        }
+        // Falls through to text-only if share is blocked
+        toast('المتصفح لا يدعم مشاركة الملفات — تم إرسال النص فقط', 'warn');
+      } catch (e) {
+        if (e.name === 'AbortError') return false; // User cancelled the share sheet
+        console.error('[wa share]', e);
+        toast('خطأ في تجهيز PDF: ' + e.message + ' — تم إرسال النص فقط', 'warn');
+      }
+    }
+
+    // Fallback: text-only via wa.me link
     openWhatsAppLink(ctx.phone, txt);
     return true;
-  }, { saveLabel: '📲 فتح واتساب', saveClass: 'btn-success', width: '640px' });
+  }, { saveLabel: '📲 إرسال', saveClass: 'btn-success', width: '640px' });
 
   // Wire up template selector to refresh the preview
   setTimeout(() => {
@@ -1368,6 +1507,14 @@ function refreshFab() {
   const cont = document.getElementById('fab-container');
   if (!cont) return;
   if (!profile || isClientPortal()) { cont.hidden = true; return; }
+
+  // Hide on tabs that already have their own primary action button
+  if (ui.currentTab === 'newcase') { cont.hidden = true; return; }
+
+  // Hide while a modal is open (so it doesn't overlap save buttons)
+  const modal = document.getElementById('modal-container');
+  if (modal && modal.children.length > 0) { cont.hidden = true; return; }
+
   const items = cont.querySelectorAll('.fab-item');
   let visibleCount = 0;
   items.forEach(it => {
@@ -1523,6 +1670,7 @@ function waCaseToClient(caseId) {
     date: c.case_date ? fmtDate(c.case_date) : new Date().toLocaleDateString('ar-EG'),
     amount_due: fmt(d.due),
     days_overdue: days,
+    caseId: c.id,
   });
 }
 
@@ -1537,6 +1685,7 @@ function waToPatientCase(caseId) {
     patient_name: c.patient_name,
     service_name: svc?.name || '',
     date: c.case_date ? fmtDate(c.case_date) : new Date().toLocaleDateString('ar-EG'),
+    caseId: c.id,
   });
 }
 
@@ -1568,6 +1717,9 @@ function toast(msg, type = 'success') {
 
 function openModal(title, contentHtml, onSave, opts = {}) {
   const cont = document.getElementById('modal-container');
+  // Hide FAB while modal is open (avoids overlapping the modal save button)
+  const fab = document.getElementById('fab-container');
+  if (fab) fab.hidden = true;
   cont.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
       <div class="modal-content" style="max-width:${opts.width || '700px'}">
@@ -1597,7 +1749,10 @@ function openModal(title, contentHtml, onSave, opts = {}) {
     };
   }
 }
-function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+function closeModal() {
+  document.getElementById('modal-container').innerHTML = '';
+  if (typeof refreshFab === 'function') refreshFab();
+}
 function confirmAction(msg, cb) {
   openModal('تأكيد', `<p class="text-slate-700">${escapeHtml(msg)}</p>`, async () => { await cb(); return true; }, { saveLabel: 'تأكيد', saveClass: 'btn-danger' });
 }
