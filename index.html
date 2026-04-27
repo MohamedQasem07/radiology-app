@@ -1503,6 +1503,29 @@ function voiceWrap(textareaHtml, lang = 'ar-EG') {
   return `<div class="voice-wrap">${enhanced}<button type="button" class="voice-btn" title="إملاء صوتي (اضغط للبدء/الإيقاف)" onclick="voiceDictate(this.parentElement.querySelector('textarea'), this)">🎤</button></div>`;
 }
 
+// WhatsApp to the hospital (client) ABOUT a specific case
+// Uses client-audience templates with patient + service + date variables
+function waCaseToClient(caseId) {
+  const c = appData.cases.find(x => x.id === caseId);
+  if (!c) return;
+  const cl = findClient(c.client_id);
+  if (!cl) { toast('لا يوجد عميل مرتبط بالحالة', 'error'); return; }
+  if (!cl.phone) { toast(`لا يوجد رقم هاتف لـ ${cl.name}. أضفه من الإعدادات → العملاء`, 'error'); return; }
+  const sv = findService(c.service_id);
+  const d = clientDue(c.client_id);
+  const last = lastActivityDate(c.client_id);
+  const days = last ? daysSince(last) : 0;
+  openWhatsAppPicker('client', {
+    phone: cl.phone,
+    client_name: cl.name,
+    patient_name: c.patient_name || '',
+    service_name: sv?.name || '',
+    date: c.case_date ? fmtDate(c.case_date) : new Date().toLocaleDateString('ar-EG'),
+    amount_due: fmt(d.due),
+    days_overdue: days,
+  });
+}
+
 // WhatsApp to a patient for a specific case (uses patient audience templates)
 function waToPatientCase(caseId) {
   const c = appData.cases.find(x => x.id === caseId);
@@ -2164,6 +2187,7 @@ function renderNewCase() {
               <option value="">-- اختر --</option>
               ${appData.clients.filter(h => h.active !== false).map(h => `<option value="${h.id}">${escapeHtml(h.name)}</option>`).join('')}
             </select>
+            <div id="nc-client-phone-hint" class="text-xs text-slate-500 mt-1" style="min-height:16px;"></div>
           </div>
           <div>
             <label>الخدمة *</label>
@@ -2220,6 +2244,24 @@ function updatePriceFromForm() {
   const hId = document.getElementById('nc-client').value;
   const sId = document.getElementById('nc-service').value;
   const type = document.getElementById('nc-type').value;
+
+  // Show client phone hint when a client is selected
+  const hint = document.getElementById('nc-client-phone-hint');
+  if (hint) {
+    if (hId) {
+      const cl = findClient(hId);
+      if (cl?.phone) {
+        hint.innerHTML = `📞 <span dir="ltr">${escapeHtml(cl.phone)}</span> · جاهز للواتساب 📲`;
+        hint.style.color = '#059669';
+      } else {
+        hint.innerHTML = `⚠️ لا يوجد رقم هاتف للعميل — <a href="#" onclick="event.preventDefault(); switchTab('settings'); ui.settingsTab='clients'; render();" style="color:#0284c7; text-decoration:underline;">أضفه من الإعدادات</a>`;
+        hint.style.color = '#b45309';
+      }
+    } else {
+      hint.innerHTML = '';
+    }
+  }
+
   if (!hId || !sId) return;
   const price = findPrice(hId, sId);
   if (!price) return;
@@ -2339,7 +2381,15 @@ function renderCases() {
                     `<button onclick="openReportChooser('${c.id}')" class="text-xl hover:scale-110 transition" title="${c.report ? 'تقرير موجود' : 'إنشاء تقرير'}">${c.report ? '📄✓' : '📄'}</button>` : '—'}
                 </td>
                 <td class="whitespace-nowrap">
-                  ${c.patient_phone ? `<button onclick="waToPatientCase('${c.id}')" class="text-emerald-600 hover:underline text-sm" title="واتساب للمريض">📲</button>` : ''}
+                  ${(() => {
+                    const cl = findClient(c.client_id);
+                    const hospPhone = cl?.phone;
+                    const patPhone = c.patient_phone;
+                    let buttons = '';
+                    if (hospPhone) buttons += `<button onclick="waCaseToClient('${c.id}')" class="hover:bg-emerald-50 px-1 rounded text-sm" title="واتساب للمستشفى (${escapeHtml(cl.name)})" style="color:#059669;">📲🏥</button>`;
+                    if (patPhone)  buttons += `<button onclick="waToPatientCase('${c.id}')" class="hover:bg-sky-50 px-1 rounded text-sm mr-1" title="واتساب للمريض" style="color:#0284c7;">📲👤</button>`;
+                    return buttons;
+                  })()}
                   ${can('perm_edit_case') ? `<button onclick="editCase('${c.id}')" class="text-sky-600 hover:underline text-sm mr-2">تعديل</button>` : ''}
                   ${can('perm_delete_case') ? `<button onclick="deleteCase('${c.id}')" class="text-red-600 hover:underline text-sm mr-2">حذف</button>` : ''}
                 </td>
