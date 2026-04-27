@@ -1,7 +1,7 @@
 {
   "name": "مدير حالات د. أحمد علي",
   "short_name": "Cases Manager",
-  "description": "Dr. Ahmed Ali Cases Manager — برنامج إدارة حالات الأشعة",
+  "description": "Dr. Ahmed Ali Cases Manager",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -12,17 +12,11 @@
   "dir": "rtl",
   "icons": [
     {
-      "src": "icon-192.png",
-      "sizes": "192x192",
+      "src": "login-bg.png",
+      "sizes": "any",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
-  "categories": ["medical", "productivity", "business"]
+  "categories": ["medical", "productivity"]
 }

@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Cases Manager">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="login-bg.png">
+  <link rel="icon" type="image/png" href="login-bg.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Times+New+Roman&display=swap" rel="stylesheet">
@@ -3172,6 +3172,13 @@ function renderAppSettings() {
         </div>
       </div>
 
+      <div class="card max-w-2xl" style="border-right:4px solid #0ea5e9;">
+        <h3 class="font-bold mb-2 text-slate-800">🔄 تحديث البرنامج</h3>
+        <p class="text-sm text-slate-600 mb-3">لو شفت نسخة قديمة أو في تعديل جديد ومش ظاهر، اضغط هنا. هيتم مسح الكاش وتحميل أحدث نسخة من السيرفر.</p>
+        <button onclick="forceUpdate()" class="btn btn-primary">🔄 تحقّق من التحديثات الآن</button>
+        <p class="text-xs text-slate-500 mt-2">البرنامج بيشيك تلقائياً كل دقيقة لو في تحديث، وبيظهرلك بانر للموافقة.</p>
+      </div>
+
       <div class="card max-w-2xl">
         <h3 class="font-bold mb-3 text-slate-800">📄 Letterhead للتقارير</h3>
         <p class="text-sm text-slate-600 mb-3">صور الـ header والـ footer اللي بتظهر في تقارير المرضى المطبوعة</p>
@@ -3325,6 +3332,91 @@ async function exportBackup() {
 // INIT
 //==============================================================
 checkSession();
+
+//==============================================================
+// PWA — Service Worker Registration + Update Detection
+//==============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./service-worker.js');
+      console.log('[PWA] Service worker registered');
+
+      // Check for updates every 60 seconds while app is open
+      setInterval(() => reg.update().catch(() => {}), 60000);
+
+      // Detect when a new service worker is installed
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+          }
+        });
+      });
+
+      // When the new SW takes control, reload to use it
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    } catch (e) {
+      console.warn('[PWA] SW registration failed:', e);
+    }
+  });
+}
+
+function showUpdateBanner() {
+  if (document.getElementById('update-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'update-banner';
+  banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;padding:14px 24px;border-radius:12px;z-index:9999;box-shadow:0 8px 32px rgba(14,165,233,0.4);display:flex;align-items:center;gap:12px;font-family:Cairo,sans-serif;animation:slideUp 0.4s ease;';
+  banner.innerHTML = `
+    <span style="font-size:20px">🎉</span>
+    <span style="font-weight:600">يتوفّر تحديث جديد!</span>
+    <button onclick="applyUpdate()" style="background:white;color:#0284c7;border:none;padding:8px 16px;border-radius:8px;font-weight:bold;cursor:pointer;font-family:inherit">تحديث الآن</button>
+    <button onclick="document.getElementById('update-banner').remove()" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.5);padding:6px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px">لاحقاً</button>
+  `;
+  // Add animation keyframes
+  if (!document.getElementById('update-banner-style')) {
+    const s = document.createElement('style');
+    s.id = 'update-banner-style';
+    s.textContent = '@keyframes slideUp { from { transform: translate(-50%, 100px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }';
+    document.head.appendChild(s);
+  }
+  document.body.appendChild(banner);
+}
+
+async function applyUpdate() {
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (reg && reg.waiting) {
+    reg.waiting.postMessage('SKIP_WAITING');
+  } else {
+    window.location.reload();
+  }
+}
+
+async function forceUpdate() {
+  if (!confirm('هيتم مسح كاش البرنامج وتحميل أحدث نسخة. متابعة؟')) return;
+  toast('جارٍ تحديث البرنامج...', 'info');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { console.warn(e); }
+  setTimeout(() => {
+    // Force reload from server (bypass cache)
+    window.location.href = window.location.pathname + '?v=' + Date.now();
+  }, 600);
+}
 </script>
 </body>
 </html>
